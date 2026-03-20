@@ -2,13 +2,35 @@ import { type ServerProviderStatus } from "@t3tools/contracts";
 import { memo } from "react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { CircleAlertIcon } from "lucide-react";
+import type { ThreadSession } from "~/types";
+
+export function shouldHideProviderHealthBanner(
+  status: ServerProviderStatus | null,
+  activeSession: ThreadSession | null,
+): boolean {
+  if (!status || status.status === "ready") {
+    return true;
+  }
+
+  if (!activeSession || activeSession.provider !== status.provider) {
+    return false;
+  }
+
+  return (
+    activeSession.status !== "error" &&
+    activeSession.status !== "closed" &&
+    activeSession.lastError === undefined
+  );
+}
 
 export const ProviderHealthBanner = memo(function ProviderHealthBanner({
   status,
+  activeSession,
 }: {
   status: ServerProviderStatus | null;
+  activeSession: ThreadSession | null;
 }) {
-  if (!status || status.status === "ready") {
+  if (shouldHideProviderHealthBanner(status, activeSession)) {
     return null;
   }
 

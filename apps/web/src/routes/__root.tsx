@@ -152,6 +152,7 @@ function EventRouter() {
     let syncing = false;
     let pending = false;
     let needsProviderInvalidation = false;
+    let needsServerConfigInvalidation = false;
 
     const flushSnapshotSync = async (): Promise<void> => {
       const snapshot = await api.orchestration.getSnapshot();
@@ -190,6 +191,10 @@ function EventRouter() {
 
     const domainEventFlushThrottler = new Throttler(
       () => {
+        if (needsServerConfigInvalidation) {
+          needsServerConfigInvalidation = false;
+          void queryClient.invalidateQueries({ queryKey: serverQueryKeys.config() });
+        }
         if (needsProviderInvalidation) {
           needsProviderInvalidation = false;
           void queryClient.invalidateQueries({ queryKey: providerQueryKeys.all });
@@ -213,6 +218,9 @@ function EventRouter() {
       latestSequence = event.sequence;
       if (event.type === "thread.turn-diff-completed" || event.type === "thread.reverted") {
         needsProviderInvalidation = true;
+      }
+      if (event.type === "thread.session-set") {
+        needsServerConfigInvalidation = true;
       }
       domainEventFlushThrottler.maybeExecute();
     });
@@ -304,6 +312,7 @@ function EventRouter() {
     return () => {
       disposed = true;
       needsProviderInvalidation = false;
+      needsServerConfigInvalidation = false;
       domainEventFlushThrottler.cancel();
       unsubDomainEvent();
       unsubTerminalEvent();
