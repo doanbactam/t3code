@@ -1,6 +1,7 @@
 import * as ChildProcess from "node:child_process";
 import * as Crypto from "node:crypto";
 import * as FS from "node:fs";
+import * as Net from "node:net";
 import * as OS from "node:os";
 import * as Path from "node:path";
 
@@ -75,6 +76,8 @@ const AUTO_UPDATE_STARTUP_DELAY_MS = 15_000;
 const AUTO_UPDATE_POLL_INTERVAL_MS = 4 * 60 * 60 * 1000;
 const DESKTOP_UPDATE_CHANNEL = "latest";
 const DESKTOP_UPDATE_ALLOW_PRERELEASE = false;
+const BACKEND_READY_TIMEOUT_MS = 15_000;
+const BACKEND_READY_POLL_INTERVAL_MS = 100;
 
 type DesktopUpdateErrorContext = DesktopUpdateState["errorContext"];
 
@@ -1000,6 +1003,49 @@ function startBackend(): void {
   });
 }
 
+async function waitForBackendReady(port: number): Promise<void> {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < BACKEND_READY_TIMEOUT_MS) {
+    if (isQuitting) {
+      throw new Error("Backend startup cancelled during app shutdown.");
+    }
+
+    if (backendProcess && backendProcess.exitCode !== null) {
+      throw new Error(
+        `Backend exited before becoming ready (exit code ${backendProcess.exitCode}).`,
+      );
+    }
+
+    const connected = await new Promise<boolean>((resolve) => {
+      const socket = Net.createConnection({ host: "127.0.0.1", port });
+      let settled = false;
+
+      const settle = (value: boolean) => {
+        if (settled) return;
+        settled = true;
+        socket.destroy();
+        resolve(value);
+      };
+
+      socket.once("connect", () => settle(true));
+      socket.once("error", () => settle(false));
+      socket.setTimeout(BACKEND_READY_POLL_INTERVAL_MS, () => settle(false));
+    });
+
+    if (connected) {
+      writeDesktopLogHeader(`backend ready on port=${port}`);
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, BACKEND_READY_POLL_INTERVAL_MS));
+  }
+
+  throw new Error(
+    `Backend did not become ready within ${BACKEND_READY_TIMEOUT_MS}ms on port ${port}.`,
+  );
+}
+
 function stopBackend(): void {
   if (restartTimer) {
     clearTimeout(restartTimer);
@@ -1328,6 +1374,7 @@ async function bootstrap(): Promise<void> {
   writeDesktopLogHeader("bootstrap ipc handlers registered");
   startBackend();
   writeDesktopLogHeader("bootstrap backend start requested");
+  await waitForBackendReady(backendPort);
   mainWindow = createWindow();
   writeDesktopLogHeader("bootstrap main window created");
 }

@@ -46,6 +46,10 @@ class MockWebSocket {
     this.emit("message", { data });
   }
 
+  error() {
+    this.emit("error");
+  }
+
   private emit(type: WsEventType, event?: { data?: unknown }) {
     const listeners = this.listeners.get(type);
     if (!listeners) return;
@@ -204,6 +208,17 @@ describe("WsTransport", () => {
     );
 
     await expect(requestPromise).resolves.toEqual({ projects: [] });
+    transport.dispose();
+  });
+
+  it("does not warn for connection errors before the first successful open", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const transport = new WsTransport("ws://localhost:3020");
+    const socket = getSocket();
+
+    socket.error();
+
+    expect(warnSpy).not.toHaveBeenCalled();
     transport.dispose();
   });
 });

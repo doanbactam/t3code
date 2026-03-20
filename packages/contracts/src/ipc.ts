@@ -45,6 +45,18 @@ import type {
   OrchestrationEvent,
   OrchestrationReadModel,
 } from "./orchestration";
+import type {
+  SymphonyTask,
+  SymphonyRun,
+  SymphonyWorkflow,
+  SymphonyTaskId,
+  SymphonyCreateTaskInput,
+  SymphonyUpdateTaskInput,
+  SymphonyMoveTaskInput,
+  SymphonyTaskEventPayload,
+  SymphonyRunEventPayload,
+} from "./symphony";
+import type { ProjectId } from "./baseSchemas";
 import { EditorId } from "./editor";
 
 export interface ContextMenuItem<T extends string = string> {
@@ -169,5 +181,18 @@ export interface NativeApi {
     ) => Promise<OrchestrationGetFullThreadDiffResult>;
     replayEvents: (fromSequenceExclusive: number) => Promise<OrchestrationEvent[]>;
     onDomainEvent: (callback: (event: OrchestrationEvent) => void) => () => void;
+  };
+  symphony: {
+    listTasks: (projectId: ProjectId) => Promise<{ tasks: SymphonyTask[] }>;
+    createTask: (input: SymphonyCreateTaskInput) => Promise<{ task: SymphonyTask }>;
+    updateTask: (input: SymphonyUpdateTaskInput) => Promise<{ task: SymphonyTask }>;
+    deleteTask: (taskId: SymphonyTaskId) => Promise<void>;
+    moveTask: (input: SymphonyMoveTaskInput) => Promise<{ task: SymphonyTask }>;
+    retryTask: (taskId: SymphonyTaskId) => Promise<{ task: SymphonyTask }>;
+    stopTask: (taskId: SymphonyTaskId) => Promise<{ task: SymphonyTask }>;
+    getRunHistory: (taskId: SymphonyTaskId) => Promise<{ runs: SymphonyRun[] }>;
+    getWorkflow: (projectId: ProjectId) => Promise<{ workflow: SymphonyWorkflow }>;
+    onTaskEvent: (callback: (event: SymphonyTaskEventPayload) => void) => () => void;
+    onRunEvent: (callback: (event: SymphonyRunEventPayload) => void) => () => void;
   };
 }

@@ -58,6 +58,7 @@ export class WsTransport {
   private disposed = false;
   private state: TransportState = "connecting";
   private readonly url: string;
+  private hasConnected = false;
 
   constructor(url?: string) {
     const bridgeUrl = window.desktopBridge?.getWsUrl();
@@ -166,6 +167,7 @@ export class WsTransport {
     ws.addEventListener("open", () => {
       this.ws = ws;
       this.state = "open";
+      this.hasConnected = true;
       this.reconnectAttempt = 0;
       this.flushQueue();
     });
@@ -175,6 +177,7 @@ export class WsTransport {
     });
 
     ws.addEventListener("close", () => {
+      const wasOpen = this.state === "open";
       if (this.ws === ws) {
         this.ws = null;
       }
@@ -183,12 +186,18 @@ export class WsTransport {
         return;
       }
       this.state = "closed";
+      if (wasOpen) {
+        console.warn("WebSocket disconnected; retrying connection", { url: this.url });
+      }
       this.scheduleReconnect();
     });
 
-    ws.addEventListener("error", (event) => {
-      // Log WebSocket errors for debugging (close event will follow)
-      console.warn("WebSocket connection error", { type: event.type, url: this.url });
+    ws.addEventListener("error", () => {
+      // Browser/Electron will also surface transport failures in DevTools.
+      // Avoid warning spam during initial startup and expected reconnect loops.
+      if (this.state === "open" || this.hasConnected) {
+        console.warn("WebSocket connection error", { url: this.url, state: this.state });
+      }
     });
   }
 

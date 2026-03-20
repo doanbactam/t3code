@@ -10,8 +10,10 @@ import {
   hasCustomModelProvider,
   parseAuthStatusFromOutput,
   parseClaudeAuthStatusFromOutput,
+  ProviderHealthLive,
   readCodexConfigModelProvider,
 } from "./ProviderHealth";
+import { ProviderHealth } from "../Services/ProviderHealth";
 
 // ── Test helpers ────────────────────────────────────────────────────
 
@@ -57,6 +59,24 @@ function failingSpawnerLayer(description: string) {
         }),
       ),
     ),
+  );
+}
+
+function selectiveSpawnerLayer(
+  handler: (
+    args: ReadonlyArray<string>,
+  ) => { stdout: string; stderr: string; code: number } | PlatformError.PlatformError,
+) {
+  return Layer.succeed(
+    ChildProcessSpawner.ChildProcessSpawner,
+    ChildProcessSpawner.make((command) => {
+      const cmd = command as unknown as { args: ReadonlyArray<string> };
+      const result = handler(cmd.args);
+      if ("stdout" in result) {
+        return Effect.succeed(mockHandle(result));
+      }
+      return Effect.fail(result);
+    }),
   );
 }
 
@@ -596,6 +616,39 @@ it.layer(NodeServices.layer)("ProviderHealth", (it) => {
         ),
       ),
     );
+
+    it.effect("returns ready when auth status probe fails for infrastructure reasons", () =>
+      Effect.gen(function* () {
+        const status = yield* checkClaudeProviderStatus;
+        assert.strictEqual(status.provider, "claudeAgent");
+        assert.strictEqual(status.status, "ready");
+        assert.strictEqual(status.available, true);
+        assert.strictEqual(status.authStatus, "unknown");
+        assert.strictEqual(status.message?.includes("Claude CLI is available"), true);
+        assert.strictEqual(status.message?.includes("spawn EPERM"), true);
+      }).pipe(
+        Effect.provide(
+          selectiveSpawnerLayer((args) => {
+            const joined = args.join(" ");
+            if (joined === "--version") return { stdout: "1.0.0\n", stderr: "", code: 0 };
+            if (joined === "auth status") {
+              return PlatformError.systemError({
+                _tag: "Unknown",
+                module: "ChildProcess",
+                method: "spawn",
+                description: "spawn EPERM",
+              });
+            }
+            return PlatformError.systemError({
+              _tag: "Unknown",
+              module: "ChildProcess",
+              method: "spawn",
+              description: `Unexpected args: ${joined}`,
+            });
+          }),
+        ),
+      ),
+    );
   });
 
   // ── parseClaudeAuthStatusFromOutput pure tests ────────────────────
@@ -636,5 +689,60 @@ it.layer(NodeServices.layer)("ProviderHealth", (it) => {
       assert.strictEqual(parsed.status, "warning");
       assert.strictEqual(parsed.authStatus, "unknown");
     });
+  });
+
+  describe("ProviderHealthLive", () => {
+    it.effect("re-runs provider checks instead of serving a stale startup snapshot", () =>
+      (() => {
+        let codexVersionChecks = 0;
+        return Effect.gen(function* () {
+          yield* withTempCodexHome();
+
+          const providerHealth = yield* ProviderHealth;
+
+          const firstStatuses = yield* providerHealth.getStatuses;
+          const secondStatuses = yield* providerHealth.getStatuses;
+
+          assert.strictEqual(firstStatuses[0]?.provider, "codex");
+          assert.strictEqual(firstStatuses[0]?.status, "error");
+          assert.strictEqual(firstStatuses[0]?.available, false);
+
+          assert.strictEqual(secondStatuses[0]?.provider, "codex");
+          assert.strictEqual(secondStatuses[0]?.status, "ready");
+          assert.strictEqual(secondStatuses[0]?.available, true);
+          assert.strictEqual(secondStatuses[0]?.authStatus, "authenticated");
+
+          assert.strictEqual(codexVersionChecks, 4);
+        }).pipe(
+          Effect.provide(
+            Layer.provideMerge(
+              ProviderHealthLive,
+              mockSpawnerLayer((args) => {
+                const joined = args.join(" ");
+                if (joined === "--version") {
+                  codexVersionChecks += 1;
+                  if (codexVersionChecks === 1) {
+                    return {
+                      stdout: "",
+                      stderr:
+                        "node:internal/modules/cjs/loader:1424 throw err; Error: Cannot find module 'C:\\Users\\kisde\\AppData\\Roaming\\npm\\node_modules\\@openai\\codex\\bin\\codex.js'",
+                      code: 1,
+                    };
+                  }
+                  return { stdout: "codex 1.0.0\n", stderr: "", code: 0 };
+                }
+                if (joined === "login status") {
+                  return { stdout: "Logged in\n", stderr: "", code: 0 };
+                }
+                if (joined === "auth status") {
+                  return { stdout: "Logged in\n", stderr: "", code: 0 };
+                }
+                throw new Error(`Unexpected args: ${joined}`);
+              }),
+            ),
+          ),
+        );
+      })(),
+    );
   });
 });

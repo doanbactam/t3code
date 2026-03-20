@@ -10,6 +10,8 @@ import { ServerConfig } from "./config";
 import { OrchestrationCommandReceiptRepositoryLive } from "./persistence/Layers/OrchestrationCommandReceipts";
 import { OrchestrationEventStoreLive } from "./persistence/Layers/OrchestrationEventStore";
 import { ProviderSessionRuntimeRepositoryLive } from "./persistence/Layers/ProviderSessionRuntime";
+import { SymphonyTaskRepositoryLive } from "./persistence/Layers/SymphonyTaskStore";
+import { SymphonyRunRepositoryLive } from "./persistence/Layers/SymphonyRunStore";
 import { OrchestrationEngineLive } from "./orchestration/Layers/OrchestrationEngine";
 import { CheckpointReactorLive } from "./orchestration/Layers/CheckpointReactor";
 import { OrchestrationReactorLive } from "./orchestration/Layers/OrchestrationReactor";
@@ -37,6 +39,7 @@ import { GitServiceLive } from "./git/Layers/GitService";
 import { BunPtyAdapterLive } from "./terminal/Layers/BunPTY";
 import { NodePtyAdapterLive } from "./terminal/Layers/NodePTY";
 import { AnalyticsService } from "./telemetry/Services/AnalyticsService";
+import { SymphonyLive } from "./symphony";
 
 export function makeServerProviderLayer(): Layer.Layer<
   ProviderService,
@@ -88,12 +91,19 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provideMerge(CheckpointStoreLive),
   );
 
+  // Symphony persistence layer
+  const symphonyPersistenceLayer = Layer.mergeAll(
+    SymphonyTaskRepositoryLive,
+    SymphonyRunRepositoryLive,
+  );
+
   const runtimeServicesLayer = Layer.mergeAll(
     orchestrationLayer,
     OrchestrationProjectionSnapshotQueryLive,
     CheckpointStoreLive,
     checkpointDiffQueryLayer,
     RuntimeReceiptBusLive,
+    symphonyPersistenceLayer,
   );
   const runtimeIngestionLayer = ProviderRuntimeIngestionLive.pipe(
     Layer.provideMerge(runtimeServicesLayer),
@@ -126,11 +136,15 @@ export function makeServerRuntimeServicesLayer() {
     Layer.provideMerge(textGenerationLayer),
   );
 
+  // Symphony layer - depends on persistence, filesystem, and provider
+  const symphonyLayer = SymphonyLive.pipe(Layer.provideMerge(symphonyPersistenceLayer));
+
   return Layer.mergeAll(
     orchestrationReactorLayer,
     gitCoreLayer,
     gitManagerLayer,
     terminalLayer,
     KeybindingsLive,
+    symphonyLayer,
   ).pipe(Layer.provideMerge(NodeServices.layer));
 }

@@ -1,8 +1,18 @@
 import {
   ORCHESTRATION_WS_CHANNELS,
   ORCHESTRATION_WS_METHODS,
+  SYMPHONY_WS_CHANNELS,
+  SYMPHONY_WS_METHODS,
   type ContextMenuItem,
   type NativeApi,
+  type SymphonyTask,
+  type SymphonyRun,
+  type SymphonyWorkflow,
+  type SymphonyTaskId,
+  type ProjectId,
+  type SymphonyCreateTaskInput,
+  type SymphonyUpdateTaskInput,
+  type SymphonyMoveTaskInput,
   ServerConfigUpdatedPayload,
   WS_CHANNELS,
   WS_METHODS,
@@ -174,6 +184,32 @@ export function createWsNativeApi(): NativeApi {
         transport.subscribe(ORCHESTRATION_WS_CHANNELS.domainEvent, (message) =>
           callback(message.data),
         ),
+    },
+    symphony: {
+      listTasks: (projectId: ProjectId) =>
+        transport.request<{ tasks: SymphonyTask[] }>(SYMPHONY_WS_METHODS.listTasks, { projectId }),
+      createTask: (input: SymphonyCreateTaskInput) =>
+        transport.request<{ task: SymphonyTask }>(SYMPHONY_WS_METHODS.createTask, input),
+      updateTask: (input: SymphonyUpdateTaskInput) =>
+        transport.request<{ task: SymphonyTask }>(SYMPHONY_WS_METHODS.updateTask, input),
+      deleteTask: (taskId: SymphonyTaskId) =>
+        transport.request(SYMPHONY_WS_METHODS.deleteTask, { taskId }),
+      moveTask: (input: SymphonyMoveTaskInput) =>
+        transport.request<{ task: SymphonyTask }>(SYMPHONY_WS_METHODS.moveTask, input),
+      retryTask: (taskId: SymphonyTaskId) =>
+        transport.request<{ task: SymphonyTask }>(SYMPHONY_WS_METHODS.retryTask, { taskId }),
+      stopTask: (taskId: SymphonyTaskId) =>
+        transport.request<{ task: SymphonyTask }>(SYMPHONY_WS_METHODS.stopTask, { taskId }),
+      getRunHistory: (taskId: SymphonyTaskId) =>
+        transport.request<{ runs: SymphonyRun[] }>(SYMPHONY_WS_METHODS.getRunHistory, { taskId }),
+      getWorkflow: (projectId: ProjectId) =>
+        transport.request<{ workflow: SymphonyWorkflow }>(SYMPHONY_WS_METHODS.getWorkflow, {
+          projectId,
+        }),
+      onTaskEvent: (callback) =>
+        transport.subscribe(SYMPHONY_WS_CHANNELS.taskEvent, (message) => callback(message.data)),
+      onRunEvent: (callback) =>
+        transport.subscribe(SYMPHONY_WS_CHANNELS.runEvent, (message) => callback(message.data)),
     },
   };
 

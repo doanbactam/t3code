@@ -1,8 +1,9 @@
 /**
- * ProviderHealthLive - Startup-time provider health checks.
+ * ProviderHealthLive - On-demand provider health checks.
  *
- * Performs one-time provider readiness probes when the server starts and
- * keeps the resulting snapshot in memory for `server.getConfig`.
+ * Runs provider readiness probes when requested by `server.getConfig` so the
+ * UI does not get stuck with stale startup-time failures after local CLI
+ * installs or repairs.
  *
  * Uses effect's ChildProcessSpawner to run CLI probes natively.
  *
@@ -14,7 +15,7 @@ import type {
   ServerProviderStatus,
   ServerProviderStatusState,
 } from "@t3tools/contracts";
-import { Array, Effect, Fiber, FileSystem, Layer, Option, Path, Result, Stream } from "effect";
+import { Array, Effect, FileSystem, Layer, Option, Path, Result, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 import {
@@ -554,25 +555,25 @@ export const checkClaudeProviderStatus: Effect.Effect<
     const error = authProbe.failure;
     return {
       provider: CLAUDE_AGENT_PROVIDER,
-      status: "warning" as const,
+      status: "ready" as const,
       available: true,
       authStatus: "unknown" as const,
       checkedAt,
       message:
         error instanceof Error
-          ? `Could not verify Claude authentication status: ${error.message}.`
-          : "Could not verify Claude authentication status.",
+          ? `Claude CLI is available, but authentication status could not be verified: ${error.message}.`
+          : "Claude CLI is available, but authentication status could not be verified.",
     };
   }
 
   if (Option.isNone(authProbe.success)) {
     return {
       provider: CLAUDE_AGENT_PROVIDER,
-      status: "warning" as const,
+      status: "ready" as const,
       available: true,
       authStatus: "unknown" as const,
       checkedAt,
-      message: "Could not verify Claude authentication status. Timed out while running command.",
+      message: "Claude CLI is available, but authentication status probe timed out.",
     };
   }
 
@@ -592,12 +593,20 @@ export const checkClaudeProviderStatus: Effect.Effect<
 export const ProviderHealthLive = Layer.effect(
   ProviderHealth,
   Effect.gen(function* () {
-    const statusesFiber = yield* Effect.all([checkCodexProviderStatus, checkClaudeProviderStatus], {
+    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+    const fileSystem = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+
+    const providerChecks = Effect.all([checkCodexProviderStatus, checkClaudeProviderStatus], {
       concurrency: "unbounded",
-    }).pipe(Effect.forkScoped);
+    }).pipe(
+      Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, spawner),
+      Effect.provideService(FileSystem.FileSystem, fileSystem),
+      Effect.provideService(Path.Path, path),
+    );
 
     return {
-      getStatuses: Fiber.join(statusesFiber),
+      getStatuses: Effect.suspend(() => providerChecks),
     } satisfies ProviderHealthShape;
   }),
 );

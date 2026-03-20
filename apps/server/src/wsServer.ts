@@ -19,6 +19,9 @@ import {
   ORCHESTRATION_WS_METHODS,
   PROVIDER_SEND_TURN_MAX_IMAGE_BYTES,
   ProjectId,
+  SymphonyTaskId,
+  SYMPHONY_WS_CHANNELS,
+  SYMPHONY_WS_METHODS,
   ThreadId,
   WS_CHANNELS,
   WS_METHODS,
@@ -34,6 +37,7 @@ import {
   Exit,
   FileSystem,
   Layer,
+  Option,
   Path,
   Ref,
   Result,
@@ -56,6 +60,10 @@ import { OrchestrationReactor } from "./orchestration/Services/OrchestrationReac
 import { ProviderService } from "./provider/Services/ProviderService";
 import { ProviderHealth } from "./provider/Services/ProviderHealth";
 import { CheckpointDiffQuery } from "./checkpointing/Services/CheckpointDiffQuery";
+import { SymphonyTaskRepository } from "./persistence/Services/SymphonyTaskStore";
+import { SymphonyRunRepository } from "./persistence/Services/SymphonyRunStore";
+import { SymphonyWorkflowLoader } from "./symphony/Services/SymphonyWorkflowLoader";
+import { SymphonyOrchestrator } from "./symphony/Services/SymphonyOrchestrator";
 import { clamp } from "effect/Number";
 import { Open, resolveAvailableEditors } from "./open";
 import { ServerConfig } from "./config";
@@ -208,7 +216,11 @@ export type ServerCoreRuntimeServices =
   | CheckpointDiffQuery
   | OrchestrationReactor
   | ProviderService
-  | ProviderHealth;
+  | ProviderHealth
+  | SymphonyTaskRepository
+  | SymphonyRunRepository
+  | SymphonyWorkflowLoader
+  | SymphonyOrchestrator;
 
 export type ServerRuntimeServices =
   | ServerCoreRuntimeServices
@@ -254,9 +266,24 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
   const terminalManager = yield* TerminalManager;
   const keybindingsManager = yield* Keybindings;
   const providerHealth = yield* ProviderHealth;
+  const symphonyTaskRepo = yield* SymphonyTaskRepository;
+  const symphonyRunRepo = yield* SymphonyRunRepository;
+  const symphonyWorkflowLoader = yield* SymphonyWorkflowLoader;
+  const symphonyOrchestrator = yield* SymphonyOrchestrator;
   const git = yield* GitCore;
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
+
+  // Recover Symphony tasks from server restart
+  yield* symphonyOrchestrator.recoverFromRestart().pipe(
+    Effect.tap(({ recoveredCount }) => {
+      if (recoveredCount > 0) {
+        return Effect.logInfo("Symphony recovery completed", { recoveredCount });
+      }
+      return Effect.void;
+    }),
+    Effect.catch((cause) => Effect.logWarning("Symphony recovery failed on startup", { cause })),
+  );
 
   yield* keybindingsManager.syncDefaultKeybindingsOnStartup.pipe(
     Effect.catch((error) =>
@@ -881,6 +908,152 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         const body = stripRequestTag(request.body);
         const keybindingsConfig = yield* keybindingsManager.upsertKeybindingRule(body);
         return { keybindings: keybindingsConfig, issues: [] };
+      }
+
+      // Symphony methods
+      case WS_METHODS.symphonyListTasks: {
+        const body = stripRequestTag(request.body);
+        const tasks = yield* symphonyTaskRepo.listByProject(body.projectId);
+        return { tasks };
+      }
+
+      case WS_METHODS.symphonyCreateTask: {
+        const body = stripRequestTag(request.body);
+        const now = new Date().toISOString();
+        const taskId = SymphonyTaskId.makeUnsafe(crypto.randomUUID());
+        const workspaceKey = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+        yield* symphonyTaskRepo.create({
+          id: taskId,
+          projectId: body.projectId,
+          title: body.title,
+          description: body.description ?? "",
+          state: "backlog",
+          priority: body.priority ?? "medium",
+          labels: body.labels ?? [],
+          workspaceKey,
+          createdAt: now,
+          updatedAt: now,
+        });
+        const taskOption = yield* symphonyTaskRepo.getById(taskId);
+        const task = Option.getOrUndefined(taskOption);
+        if (task) {
+          yield* pushBus.publishAll(SYMPHONY_WS_CHANNELS.taskEvent, {
+            kind: "created",
+            task,
+          });
+        }
+        return { task };
+      }
+
+      case WS_METHODS.symphonyUpdateTask: {
+        const body = stripRequestTag(request.body);
+        const taskBeforeOption = yield* symphonyTaskRepo.getById(body.taskId);
+        yield* symphonyTaskRepo.update({
+          taskId: body.taskId,
+          title: body.title,
+          description: body.description,
+          priority: body.priority,
+          labels: body.labels,
+          updatedAt: new Date().toISOString(),
+        });
+        const taskOption = yield* symphonyTaskRepo.getById(body.taskId);
+        const task = Option.getOrUndefined(taskOption);
+        if (task) {
+          yield* pushBus.publishAll(SYMPHONY_WS_CHANNELS.taskEvent, {
+            kind: "updated",
+            task,
+          });
+        }
+        return { task };
+      }
+
+      case WS_METHODS.symphonyDeleteTask: {
+        const body = stripRequestTag(request.body);
+        const taskOption = yield* symphonyTaskRepo.getById(body.taskId);
+        const task = Option.getOrUndefined(taskOption);
+        yield* symphonyTaskRepo.deleteById(body.taskId);
+        if (task) {
+          yield* pushBus.publishAll(SYMPHONY_WS_CHANNELS.taskEvent, {
+            kind: "deleted",
+            task,
+          });
+        }
+        return {};
+      }
+
+      case WS_METHODS.symphonyMoveTask: {
+        const body = stripRequestTag(request.body);
+        yield* symphonyTaskRepo.moveState({
+          taskId: body.taskId,
+          newState: body.newState,
+          updatedAt: new Date().toISOString(),
+        });
+        const taskOption = yield* symphonyTaskRepo.getById(body.taskId);
+        const task = Option.getOrUndefined(taskOption);
+        if (task) {
+          yield* pushBus.publishAll(SYMPHONY_WS_CHANNELS.taskEvent, {
+            kind: "state-changed",
+            task,
+          });
+        }
+        return { task };
+      }
+
+      case WS_METHODS.symphonyRetryTask: {
+        const body = stripRequestTag(request.body);
+        // Move task back to queued state for retry
+        yield* symphonyTaskRepo.moveState({
+          taskId: body.taskId,
+          newState: "queued",
+          updatedAt: new Date().toISOString(),
+        });
+        const taskOption = yield* symphonyTaskRepo.getById(body.taskId);
+        const task = Option.getOrUndefined(taskOption);
+        if (task) {
+          yield* pushBus.publishAll(SYMPHONY_WS_CHANNELS.taskEvent, {
+            kind: "state-changed",
+            task,
+          });
+        }
+        return { task };
+      }
+
+      case WS_METHODS.symphonyStopTask: {
+        const body = stripRequestTag(request.body);
+        // Move task to backlog (stopped)
+        yield* symphonyTaskRepo.moveState({
+          taskId: body.taskId,
+          newState: "backlog",
+          updatedAt: new Date().toISOString(),
+        });
+        const taskOption = yield* symphonyTaskRepo.getById(body.taskId);
+        const task = Option.getOrUndefined(taskOption);
+        if (task) {
+          yield* pushBus.publishAll(SYMPHONY_WS_CHANNELS.taskEvent, {
+            kind: "state-changed",
+            task,
+          });
+        }
+        return { task };
+      }
+
+      case WS_METHODS.symphonyGetRunHistory: {
+        const body = stripRequestTag(request.body);
+        const runs = yield* symphonyRunRepo.listByTask(body.taskId);
+        return { runs };
+      }
+
+      case WS_METHODS.symphonyGetWorkflow: {
+        const body = stripRequestTag(request.body);
+        const snapshot = yield* projectionReadModelQuery.getSnapshot();
+        const project = snapshot.projects.find((p) => p.id === body.projectId);
+        if (!project) {
+          return yield* new RouteRequestError({
+            message: `Project not found: ${body.projectId}`,
+          });
+        }
+        const parsed = yield* symphonyWorkflowLoader.load(body.projectId, project.workspaceRoot);
+        return { workflow: parsed.workflow };
       }
 
       default: {

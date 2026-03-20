@@ -37,6 +37,21 @@ import { KeybindingRule } from "./keybindings";
 import { ProjectSearchEntriesInput, ProjectWriteFileInput } from "./project";
 import { OpenInEditorInput } from "./editor";
 import { ServerConfigUpdatedPayload } from "./server";
+import {
+  SYMPHONY_WS_CHANNELS,
+  SYMPHONY_WS_METHODS,
+  SymphonyCreateTaskInput,
+  SymphonyDeleteTaskInput,
+  SymphonyGetRunHistoryInput,
+  SymphonyGetWorkflowInput,
+  SymphonyListTasksInput,
+  SymphonyMoveTaskInput,
+  SymphonyRetryTaskInput,
+  SymphonyRunEventPayload,
+  SymphonyStopTaskInput,
+  SymphonyTaskEventPayload,
+  SymphonyUpdateTaskInput,
+} from "./symphony";
 
 // ── WebSocket RPC Method Names ───────────────────────────────────────
 
@@ -75,6 +90,17 @@ export const WS_METHODS = {
   // Server meta
   serverGetConfig: "server.getConfig",
   serverUpsertKeybinding: "server.upsertKeybinding",
+
+  // Symphony methods
+  symphonyListTasks: SYMPHONY_WS_METHODS.listTasks,
+  symphonyCreateTask: SYMPHONY_WS_METHODS.createTask,
+  symphonyUpdateTask: SYMPHONY_WS_METHODS.updateTask,
+  symphonyDeleteTask: SYMPHONY_WS_METHODS.deleteTask,
+  symphonyMoveTask: SYMPHONY_WS_METHODS.moveTask,
+  symphonyRetryTask: SYMPHONY_WS_METHODS.retryTask,
+  symphonyStopTask: SYMPHONY_WS_METHODS.stopTask,
+  symphonyGetRunHistory: SYMPHONY_WS_METHODS.getRunHistory,
+  symphonyGetWorkflow: SYMPHONY_WS_METHODS.getWorkflow,
 } as const;
 
 // ── Push Event Channels ──────────────────────────────────────────────
@@ -83,6 +109,8 @@ export const WS_CHANNELS = {
   terminalEvent: "terminal.event",
   serverWelcome: "server.welcome",
   serverConfigUpdated: "server.configUpdated",
+  symphonyTaskEvent: SYMPHONY_WS_CHANNELS.taskEvent,
+  symphonyRunEvent: SYMPHONY_WS_CHANNELS.runEvent,
 } as const;
 
 // -- Tagged Union of all request body schemas ─────────────────────────
@@ -139,6 +167,17 @@ const WebSocketRequestBody = Schema.Union([
   // Server meta
   tagRequestBody(WS_METHODS.serverGetConfig, Schema.Struct({})),
   tagRequestBody(WS_METHODS.serverUpsertKeybinding, KeybindingRule),
+
+  // Symphony methods
+  tagRequestBody(WS_METHODS.symphonyListTasks, SymphonyListTasksInput),
+  tagRequestBody(WS_METHODS.symphonyCreateTask, SymphonyCreateTaskInput),
+  tagRequestBody(WS_METHODS.symphonyUpdateTask, SymphonyUpdateTaskInput),
+  tagRequestBody(WS_METHODS.symphonyDeleteTask, SymphonyDeleteTaskInput),
+  tagRequestBody(WS_METHODS.symphonyMoveTask, SymphonyMoveTaskInput),
+  tagRequestBody(WS_METHODS.symphonyRetryTask, SymphonyRetryTaskInput),
+  tagRequestBody(WS_METHODS.symphonyStopTask, SymphonyStopTaskInput),
+  tagRequestBody(WS_METHODS.symphonyGetRunHistory, SymphonyGetRunHistoryInput),
+  tagRequestBody(WS_METHODS.symphonyGetWorkflow, SymphonyGetWorkflowInput),
 ]);
 
 export const WebSocketRequest = Schema.Struct({
@@ -174,6 +213,8 @@ export interface WsPushPayloadByChannel {
   readonly [WS_CHANNELS.serverConfigUpdated]: typeof ServerConfigUpdatedPayload.Type;
   readonly [WS_CHANNELS.terminalEvent]: typeof TerminalEvent.Type;
   readonly [ORCHESTRATION_WS_CHANNELS.domainEvent]: OrchestrationEvent;
+  readonly [SYMPHONY_WS_CHANNELS.taskEvent]: typeof SymphonyTaskEventPayload.Type;
+  readonly [SYMPHONY_WS_CHANNELS.runEvent]: typeof SymphonyRunEventPayload.Type;
 }
 
 export type WsPushChannel = keyof WsPushPayloadByChannel;
@@ -200,12 +241,22 @@ export const WsPushOrchestrationDomainEvent = makeWsPushSchema(
   ORCHESTRATION_WS_CHANNELS.domainEvent,
   OrchestrationEvent,
 );
+export const WsPushSymphonyTaskEvent = makeWsPushSchema(
+  SYMPHONY_WS_CHANNELS.taskEvent,
+  SymphonyTaskEventPayload,
+);
+export const WsPushSymphonyRunEvent = makeWsPushSchema(
+  SYMPHONY_WS_CHANNELS.runEvent,
+  SymphonyRunEventPayload,
+);
 
 export const WsPushChannelSchema = Schema.Literals([
   WS_CHANNELS.serverWelcome,
   WS_CHANNELS.serverConfigUpdated,
   WS_CHANNELS.terminalEvent,
   ORCHESTRATION_WS_CHANNELS.domainEvent,
+  SYMPHONY_WS_CHANNELS.taskEvent,
+  SYMPHONY_WS_CHANNELS.runEvent,
 ]);
 export type WsPushChannelSchema = typeof WsPushChannelSchema.Type;
 
@@ -214,6 +265,8 @@ export const WsPush = Schema.Union([
   WsPushServerConfigUpdated,
   WsPushTerminalEvent,
   WsPushOrchestrationDomainEvent,
+  WsPushSymphonyTaskEvent,
+  WsPushSymphonyRunEvent,
 ]);
 export type WsPush = typeof WsPush.Type;
 

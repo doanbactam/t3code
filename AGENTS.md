@@ -51,3 +51,22 @@ Docs:
 - Codex-Monitor (Tauri, feature-complete, strong reference implementation): https://github.com/Dimillian/CodexMonitor
 
 Use these as implementation references when designing protocol handling, UX flows, and operational safeguards.
+
+## Symphony - Autonomous Orchestration
+
+Symphony is an autonomous orchestration layer that runs agent tasks in parallel with configurable workflows.
+
+Key files:
+
+- `packages/contracts/src/symphony.ts` - Task/Run schemas, WS methods/channels
+- `apps/server/src/symphony/` - Core engine (WorkflowLoader, WorkspaceManager, AgentRunner, Orchestrator, PushService)
+- `apps/server/src/persistence/Layers/SymphonyTaskStore.ts` - Task persistence
+- `apps/server/src/persistence/Layers/SymphonyRunStore.ts` - Run history persistence
+- `apps/web/src/symphonyStore.ts` - Client-side Zustand store
+- `apps/web/src/components/symphony/` - UI components (Dashboard, Board, Column, TaskCard, Metrics)
+
+Task states: `backlog → queued → running → review → done` (or `failed`)
+
+Access the Kanban dashboard at `/symphony`.
+
+See `.docs/symphony.md` for full documentation.
