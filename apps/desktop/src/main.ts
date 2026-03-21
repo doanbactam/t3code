@@ -76,7 +76,7 @@ const AUTO_UPDATE_STARTUP_DELAY_MS = 15_000;
 const AUTO_UPDATE_POLL_INTERVAL_MS = 4 * 60 * 60 * 1000;
 const DESKTOP_UPDATE_CHANNEL = "latest";
 const DESKTOP_UPDATE_ALLOW_PRERELEASE = false;
-const BACKEND_READY_TIMEOUT_MS = 15_000;
+const BACKEND_READY_TIMEOUT_MS = 30_000; // Increased from 15s to 30s for slower systems
 const BACKEND_READY_POLL_INTERVAL_MS = 100;
 
 type DesktopUpdateErrorContext = DesktopUpdateState["errorContext"];

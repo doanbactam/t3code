@@ -3,7 +3,6 @@ import { EventEmitter } from "node:events";
 
 import {
   EventId,
-  ProviderItemId,
   ProviderRequestKind,
   type ProviderUserInputAnswers,
   ThreadId,
@@ -39,14 +38,9 @@ import {
   readProviderConversationId,
   readRouteFields,
   readString,
-  toProviderItemId,
   toTurnId,
 } from "./protocolParser";
-import {
-  assertSupportedCodexCliVersion,
-  killChildTree,
-  spawnCodexProcess,
-} from "./processManager";
+import { assertSupportedCodexCliVersion, killChildTree, spawnCodexProcess } from "./processManager";
 import {
   clearPendingRequests,
   closeSessionOutput,
@@ -60,13 +54,11 @@ import type {
   CodexAppServerStartSessionInput,
   CodexSessionContext,
   CodexThreadSnapshot,
-  CodexThreadTurnSnapshot,
   CodexUserInputAnswer,
   JsonRpcNotification,
   JsonRpcRequest,
   JsonRpcResponse,
   PendingApprovalRequest,
-  PendingUserInputRequest,
 } from "./types";
 
 // ============================================================================
@@ -1146,13 +1138,11 @@ export class CodexAppServerManager extends EventEmitter<CodexAppServerManagerEve
   private parseThreadSnapshot(method: string, response: unknown): CodexThreadSnapshot {
     const responseRecord = readObject(response);
     const thread = readObject(responseRecord, "thread");
-    const threadIdRaw =
-      readString(thread, "id") ?? readString(responseRecord, "threadId");
+    const threadIdRaw = readString(thread, "id") ?? readString(responseRecord, "threadId");
     if (!threadIdRaw) {
       throw new Error(`${method} response did not include a thread id.`);
     }
-    const turnsRaw =
-      readArray(thread, "turns") ?? readArray(responseRecord, "turns") ?? [];
+    const turnsRaw = readArray(thread, "turns") ?? readArray(responseRecord, "turns") ?? [];
     const turns = turnsRaw.map((turnValue, index) => {
       const turn = readObject(turnValue);
       const turnIdRaw = readString(turn, "id") ?? `${threadIdRaw}:turn:${index + 1}`;

@@ -1,7 +1,8 @@
 /**
  * SymphonyBoard
  *
- * Kanban board with columns for each task state.
+ * Responsive grid-based task board with columns for each task state.
+ * Adapts layout based on viewport: 1 col (mobile) → 2 cols (tablet) → 3 cols (desktop)
  */
 import {
   closestCorners,
@@ -97,7 +98,8 @@ export function SymphonyBoard({
       onDragEnd={(event) => void handleDragEnd(event)}
       onDragCancel={() => setMovingTaskId(null)}
     >
-      <div className="relative flex h-full gap-4 overflow-x-auto p-4">
+      {/* Responsive grid: 1 col mobile, 2 cols tablet, 3 cols desktop, 6 cols on 2xl */}
+      <div className="grid h-full grid-cols-1 gap-4 overflow-y-auto p-4 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         <SymphonyColumn title="Backlog" tasks={backlog} state="backlog" />
         <SymphonyColumn title="Queued" tasks={queued} state="queued" />
         <SymphonyColumn title="Running" tasks={running} state="running" />
@@ -105,8 +107,9 @@ export function SymphonyBoard({
         <SymphonyColumn title="Done" tasks={done} state="done" />
         <SymphonyColumn title="Failed" tasks={failed} state="failed" />
       </div>
+
       {movingTaskId ? (
-        <div className="pointer-events-none absolute right-6 bottom-6 rounded-full border bg-popover px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+        <div className="pointer-events-none fixed right-6 bottom-6 rounded-full border border-neutral-200 bg-card px-4 py-2 text-xs font-medium text-foreground shadow-md dark:border-neutral-800">
           Moving task...
         </div>
       ) : null}

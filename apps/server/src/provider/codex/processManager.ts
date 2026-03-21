@@ -63,9 +63,7 @@ export interface AssertSupportedCodexCliVersionInput {
   readonly homePath?: string;
 }
 
-export function assertSupportedCodexCliVersion(
-  input: AssertSupportedCodexCliVersionInput,
-): void {
+export function assertSupportedCodexCliVersion(input: AssertSupportedCodexCliVersionInput): void {
   const result = spawnSync(input.binaryPath, ["--version"], {
     cwd: input.cwd,
     env: {

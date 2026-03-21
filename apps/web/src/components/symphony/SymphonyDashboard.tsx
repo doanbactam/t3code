@@ -4,18 +4,23 @@
  * Main Symphony dashboard with Kanban board.
  */
 import type { SymphonyTask, SymphonyWorkflow } from "@t3tools/contracts";
-import { PlusIcon } from "lucide-react";
+import { PauseIcon, PlayIcon, PlusIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "~/components/ui/button";
-import { Sheet, SheetPopup } from "~/components/ui/sheet";
 import { toastManager } from "~/components/ui/toast";
 import { readNativeApi } from "~/nativeApi";
-import { selectSelectedTask, selectTasksByProject, useSymphonyStore } from "~/symphonyStore";
+import {
+  selectSelectedTask,
+  selectTasksByProject,
+  selectOrchestratorStatus,
+  selectIsOrchestratorStarting,
+  useSymphonyStore,
+} from "~/symphonyStore";
 import { useStore } from "~/store";
 import { SymphonyBoard } from "./SymphonyBoard";
 import { SymphonyMetrics } from "./SymphonyMetrics";
-import { SymphonyTaskDetail } from "./SymphonyTaskDetail";
+import { SymphonyTaskDetailDialog } from "./SymphonyTaskDetailDialog";
 import { SymphonyTaskForm } from "./SymphonyTaskForm";
 
 const SYMPHONY_CREATE_TASK_EVENT = "symphony:create-task";
@@ -26,15 +31,17 @@ export function SymphonyDashboard() {
   const projectId = project?.id ?? null;
 
   const tasks = useSymphonyStore(
-    useShallow((state) =>
-      projectId ? selectTasksByProject(projectId)(state) : [],
-    ),
+    useShallow((state) => (projectId ? selectTasksByProject(projectId)(state) : [])),
   );
   const selectedTask = useSymphonyStore(selectSelectedTask);
   const hydrated = useSymphonyStore((state) => state.hydrated);
+  const orchestratorStatus = useSymphonyStore(selectOrchestratorStatus);
+  const isOrchestratorStarting = useSymphonyStore(selectIsOrchestratorStarting);
   const setTasks = useSymphonyStore((state) => state.setTasks);
   const setRuns = useSymphonyStore((state) => state.setRuns);
   const setHydrated = useSymphonyStore((state) => state.setHydrated);
+  const setOrchestratorStatus = useSymphonyStore((state) => state.setOrchestratorStatus);
+  const setOrchestratorStarting = useSymphonyStore((state) => state.setOrchestratorStarting);
   const handleTaskEvent = useSymphonyStore((state) => state.handleTaskEvent);
   const handleRunEvent = useSymphonyStore((state) => state.handleRunEvent);
   const selectTask = useSymphonyStore((state) => state.selectTask);
@@ -122,6 +129,81 @@ export function SymphonyDashboard() {
     };
   }, [projectId, hydrated, setHydrated, setRuns, setTasks]);
 
+  // Poll orchestrator status
+  useEffect(() => {
+    if (!projectId || !hydrated) return;
+
+    const api = readNativeApi();
+    if (!api) return;
+
+    let cancelled = false;
+
+    const pollStatus = async () => {
+      try {
+        const { status } = await api.symphony.getOrchestratorStatus(projectId);
+        if (!cancelled) {
+          setOrchestratorStatus(status);
+        }
+      } catch (error) {
+        console.warn("Failed to get orchestrator status:", error);
+      }
+    };
+
+    void pollStatus();
+
+    const interval = setInterval(pollStatus, 3000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [projectId, hydrated, setOrchestratorStatus]);
+
+  const handleStartOrchestrator = async () => {
+    if (!projectId) return;
+
+    const api = readNativeApi();
+    if (!api) return;
+
+    setOrchestratorStarting(true);
+    try {
+      await api.symphony.startOrchestrator({
+        projectId,
+        maxConcurrency: workflow?.config.agent?.maxConcurrency,
+        stallTimeoutMs: workflow?.config.agent?.stallTimeoutMs,
+      });
+      const { status } = await api.symphony.getOrchestratorStatus(projectId);
+      setOrchestratorStatus(status);
+    } catch (error) {
+      toastManager.add({
+        type: "error",
+        title: "Failed to start orchestrator",
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setOrchestratorStarting(false);
+    }
+  };
+
+  const handleStopOrchestrator = async () => {
+    if (!projectId) return;
+
+    const api = readNativeApi();
+    if (!api) return;
+
+    try {
+      await api.symphony.stopOrchestrator(projectId);
+      const { status } = await api.symphony.getOrchestratorStatus(projectId);
+      setOrchestratorStatus(status);
+    } catch (error) {
+      toastManager.add({
+        type: "error",
+        title: "Failed to stop orchestrator",
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  };
+
   const backlog = tasks.filter((task) => task.state === "backlog");
   const queued = tasks.filter((task) => task.state === "queued");
   const running = tasks.filter((task) => task.state === "running");
@@ -173,17 +255,48 @@ export function SymphonyDashboard() {
           <div className="text-sm text-muted-foreground">
             {project?.name ?? "Project"}
             {workflowSummary ? ` | ${workflowSummary}` : ""}
+            {orchestratorStatus?.isRunning && (
+              <span className="ml-2 inline-flex items-center gap-1 text-green-600">
+                <span className="size-2 animate-pulse rounded-full bg-green-500" />
+                {orchestratorStatus.activeRunCount} running
+              </span>
+            )}
           </div>
         </div>
-        <Button
-          onClick={() => {
-            setEditingTask(null);
-            setTaskFormOpen(true);
-          }}
-        >
-          <PlusIcon className="size-4" />
-          New task
-        </Button>
+        <div className="flex items-center gap-3">
+          {orchestratorStatus?.isRunning ? (
+            <Button
+              variant="outline"
+              onClick={handleStopOrchestrator}
+              disabled={isOrchestratorStarting}
+              title="Stop the orchestrator"
+            >
+              <PauseIcon className="size-4" />
+              Stop
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={handleStartOrchestrator}
+              disabled={isOrchestratorStarting}
+              title="Start the orchestrator"
+            >
+              <PlayIcon className="size-4" />
+              {isOrchestratorStarting ? "Starting..." : "Start"}
+            </Button>
+          )}
+          <Button
+            onClick={() => {
+              setEditingTask(null);
+              setTaskFormOpen(true);
+            }}
+            title="Create a new task"
+            className="gap-2 font-semibold"
+          >
+            <PlusIcon className="size-4" />
+            New Task
+          </Button>
+        </div>
       </div>
 
       <SymphonyMetrics
@@ -195,42 +308,27 @@ export function SymphonyDashboard() {
         failedCount={failed.length}
       />
 
-      <div className="flex min-h-0 flex-1">
-        <div className="min-w-0 flex-1 overflow-hidden">
-          <SymphonyBoard
-            backlog={backlog}
-            queued={queued}
-            running={running}
-            review={review}
-            done={done}
-            failed={failed}
-          />
-        </div>
-
-        <div className="hidden w-[28rem] min-w-[28rem] border-l p-4 xl:block">
-          <SymphonyTaskDetail
-            task={selectedTask}
-            cwd={project?.cwd}
-            onEditTask={(task) => {
-              setEditingTask(task);
-              setTaskFormOpen(true);
-            }}
-          />
-        </div>
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <SymphonyBoard
+          backlog={backlog}
+          queued={queued}
+          running={running}
+          review={review}
+          done={done}
+          failed={failed}
+        />
       </div>
 
-      <Sheet open={selectedTask !== null} onOpenChange={(open) => !open && selectTask(null)}>
-        <SheetPopup side="right" className="xl:hidden">
-          <SymphonyTaskDetail
-            task={selectedTask}
-            cwd={project?.cwd}
-            onEditTask={(task) => {
-              setEditingTask(task);
-              setTaskFormOpen(true);
-            }}
-          />
-        </SheetPopup>
-      </Sheet>
+      <SymphonyTaskDetailDialog
+        task={selectedTask}
+        cwd={project?.cwd}
+        open={selectedTask !== null}
+        onOpenChange={(open) => !open && selectTask(null)}
+        onEditTask={(task) => {
+          setEditingTask(task);
+          setTaskFormOpen(true);
+        }}
+      />
 
       <SymphonyTaskForm
         open={taskFormOpen}

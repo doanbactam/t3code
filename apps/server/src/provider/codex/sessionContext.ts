@@ -1,6 +1,6 @@
 import readline from "node:readline";
 
-import { ApprovalRequestId, type ThreadId, type ProviderSession } from "@t3tools/contracts";
+import { ApprovalRequestId, type ProviderSession } from "@t3tools/contracts";
 
 import type {
   CodexAccountSnapshot,
@@ -33,7 +33,10 @@ export function createCodexSessionContext(
     pending: new Map<PendingRequestKey, PendingRequest>(),
     pendingApprovals: new Map<ApprovalRequestId, PendingApprovalRequest>(),
     pendingUserInputs: new Map<ApprovalRequestId, PendingUserInputRequest>(),
-    collabReceiverTurns: new Map<string, CodexSessionContext["collabReceiverTurns"] extends Map<string, infer T> ? T : never>(),
+    collabReceiverTurns: new Map<
+      string,
+      CodexSessionContext["collabReceiverTurns"] extends Map<string, infer T> ? T : never
+    >(),
     nextRequestId: 1,
     stopping: false,
   };

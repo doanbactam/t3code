@@ -1,7 +1,7 @@
 /**
  * SymphonyColumn
  *
- * Single column in the Kanban board.
+ * Single column in the task board. Works in both scrollable and grid layouts.
  */
 import { useDroppable } from "@dnd-kit/core";
 import type { SymphonyTask, SymphonyTaskState } from "@t3tools/contracts";
@@ -26,26 +26,26 @@ export function SymphonyColumn({ title, tasks, state }: SymphonyColumnProps) {
     <div
       ref={setNodeRef}
       className={cn(
-        "flex w-72 flex-shrink-0 flex-col rounded-xl border transition-colors",
+        "flex min-h-screen flex-col rounded-lg border bg-card shadow-sm transition-[border-color,box-shadow,background-color] duration-150",
         SYMPHONY_STATE_META[state].columnClassName,
-        isOver && "border-primary/60 shadow-sm ring-2 ring-primary/15",
+        isOver && "border-primary/70 shadow-md ring-2 ring-primary/20",
       )}
     >
-      <div className="flex items-center justify-between border-b p-3">
-        <h3 className="font-medium text-sm">{title}</h3>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+      <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3 dark:border-neutral-800 shrink-0">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <span className="rounded-full bg-neutral-200 px-2.5 py-1 text-xs font-semibold text-neutral-700 tabular-nums dark:bg-neutral-800 dark:text-neutral-300">
           {tasks.length}
         </span>
       </div>
 
-      <ScrollArea className="flex-1 p-2">
-        <div className="space-y-2 pb-2">
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="space-y-2 p-3">
           {tasks.map((task) => (
             <SymphonyTaskCard key={task.id} task={task} />
           ))}
 
           {tasks.length === 0 && (
-            <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
+            <div className="flex h-40 items-center justify-center text-xs text-muted-foreground">
               No tasks
             </div>
           )}

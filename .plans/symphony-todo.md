@@ -16,6 +16,7 @@
   - [x] Client command input schemas (Create, Update, Move, Delete, Retry, Stop)
   - [x] Event payload schemas (TaskEvent, RunEvent)
   - [x] RPC schema map (`SymphonyRpcSchemas`)
+  - [x] Orchestrator control schemas (Start, Stop, GetStatus)
 - [x] Extend `packages/contracts/src/ws.ts`
   - [x] Add `symphony.*` methods to `WS_METHODS`
   - [x] Add `symphony.*` channels to `WS_CHANNELS`
@@ -127,6 +128,29 @@
 - [x] Create `.docs/symphony.md`
 - [x] Update `AGENTS.md` with Symphony reference
 
+---
+
+## Phase 5: Orchestrator Integration ✅ COMPLETE
+
+### Contracts ✅
+- [x] Add `startOrchestrator` WS method
+- [x] Add `stopOrchestrator` WS method
+- [x] Add `getOrchestratorStatus` WS method
+- [x] Add `SymphonyOrchestratorStatus` schema
+- [x] Add `SymphonyStartOrchestratorInput` schema
+
+### Server ✅
+- [x] Add `symphonyStartOrchestrator` handler in wsServer.ts
+- [x] Add `symphonyStopOrchestrator` handler in wsServer.ts
+- [x] Add `symphonyGetOrchestratorStatus` handler in wsServer.ts
+
+### Client ✅
+- [x] Add orchestrator methods to wsNativeApi.ts
+- [x] Add orchestrator state to symphonyStore.ts
+- [x] Add Start/Stop button to SymphonyDashboard.tsx
+- [x] Poll orchestrator status every 3 seconds
+- [x] Display running task count in header
+
 ### Cross-linking (future enhancement)
 - [ ] Link task ↔ thread (optional)
 
@@ -140,6 +164,7 @@
 | Phase 2: Core Engine | ✅ COMPLETE |
 | Phase 3: UI | ✅ COMPLETE |
 | Phase 4: Polish & Hardening | ✅ COMPLETE |
+| Phase 5: Orchestrator Integration | ✅ COMPLETE |
 
 **Symphony Integration is feature-complete!** 🎉
 

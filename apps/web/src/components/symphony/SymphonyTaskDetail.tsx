@@ -25,12 +25,10 @@ export function SymphonyTaskDetail({ task, cwd, onEditTask }: SymphonyTaskDetail
   const { settings } = useAppSettings();
   const selectTask = useSymphonyStore((state) => state.selectTask);
   const runsRaw = useSymphonyStore(
-    useShallow((state) =>
-      task ? selectRunsByTask(task.id)(state) : [],
-    ),
+    useShallow((state) => (task ? selectRunsByTask(task.id)(state) : [])),
   );
   // Memoize reversed runs to prevent infinite loop from new array reference each render
-  const runs = useMemo(() => [...runsRaw].reverse(), [runsRaw]);
+  const runs = useMemo(() => [...runsRaw].toReversed(), [runsRaw]);
   const [selectedRunId, setSelectedRunId] = useState<SymphonyRunId | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const prevTaskIdRef = useRef<string | null>(null);
@@ -50,7 +48,7 @@ export function SymphonyTaskDetail({ task, cwd, onEditTask }: SymphonyTaskDetail
       const preferredRunId = task.currentRunId ?? runs[0]?.id ?? null;
       setSelectedRunId(preferredRunId);
     }
-  }, [task?.id]);
+  }, [task, runs, task?.id]);
 
   const selectedRun = useMemo(
     () => runs.find((run) => run.id === selectedRunId) ?? runs[0] ?? null,

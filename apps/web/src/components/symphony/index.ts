@@ -11,5 +11,6 @@ export { SymphonyTaskCard } from "./SymphonyTaskCard";
 export { SymphonyMetrics } from "./SymphonyMetrics";
 export { SymphonyTaskForm } from "./SymphonyTaskForm";
 export { SymphonyTaskDetail } from "./SymphonyTaskDetail";
+export { SymphonyTaskDetailDialog } from "./SymphonyTaskDetailDialog";
 export { SymphonyRunHistory } from "./SymphonyRunHistory";
 export { SymphonyRunOutput } from "./SymphonyRunOutput";

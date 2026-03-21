@@ -26,6 +26,7 @@ export const CreateSymphonyRunInput = Schema.Struct({
   attempt: Schema.Number,
   prompt: Schema.String,
   startedAt: IsoDateTime,
+  lastActivityAt: IsoDateTime,
 });
 export type CreateSymphonyRunInput = typeof CreateSymphonyRunInput.Type;
 
@@ -49,6 +50,11 @@ export interface SymphonyRunRepositoryShape {
 
   readonly complete: (
     input: CompleteSymphonyRunInput,
+  ) => Effect.Effect<void, ProjectionRepositoryError>;
+
+  readonly updateLastActivity: (
+    runId: SymphonyRunId,
+    lastActivityAt: IsoDateTime,
   ) => Effect.Effect<void, ProjectionRepositoryError>;
 
   readonly listByTask: (

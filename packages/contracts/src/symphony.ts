@@ -71,6 +71,7 @@ export const SymphonyRun = Schema.Struct({
   error: Schema.NullOr(Schema.String),
   tokenUsage: Schema.NullOr(SymphonyTokenUsage),
   startedAt: IsoDateTime,
+  lastActivityAt: IsoDateTime,
   completedAt: Schema.NullOr(IsoDateTime),
 });
 export type SymphonyRun = typeof SymphonyRun.Type;
@@ -119,6 +120,9 @@ export const SYMPHONY_WS_METHODS = {
   stopTask: "symphony.stopTask",
   getRunHistory: "symphony.getRunHistory",
   getWorkflow: "symphony.getWorkflow",
+  startOrchestrator: "symphony.startOrchestrator",
+  stopOrchestrator: "symphony.stopOrchestrator",
+  getOrchestratorStatus: "symphony.getOrchestratorStatus",
 } as const;
 
 export const SYMPHONY_WS_CHANNELS = {
@@ -181,6 +185,32 @@ export const SymphonyGetWorkflowInput = Schema.Struct({
   projectId: ProjectId,
 });
 export type SymphonyGetWorkflowInput = typeof SymphonyGetWorkflowInput.Type;
+
+export const SymphonyStartOrchestratorInput = Schema.Struct({
+  projectId: ProjectId,
+  maxConcurrency: Schema.optional(NonNegativeInt),
+  maxRetries: Schema.optional(NonNegativeInt),
+  stallTimeoutMs: Schema.optional(NonNegativeInt),
+});
+export type SymphonyStartOrchestratorInput = typeof SymphonyStartOrchestratorInput.Type;
+
+export const SymphonyStopOrchestratorInput = Schema.Struct({
+  projectId: ProjectId,
+});
+export type SymphonyStopOrchestratorInput = typeof SymphonyStopOrchestratorInput.Type;
+
+export const SymphonyGetOrchestratorStatusInput = Schema.Struct({
+  projectId: ProjectId,
+});
+export type SymphonyGetOrchestratorStatusInput = typeof SymphonyGetOrchestratorStatusInput.Type;
+
+export const SymphonyOrchestratorStatus = Schema.Struct({
+  isRunning: Schema.Boolean,
+  activeRunCount: NonNegativeInt,
+  maxConcurrency: NonNegativeInt,
+  retryQueueSize: NonNegativeInt,
+});
+export type SymphonyOrchestratorStatus = typeof SymphonyOrchestratorStatus.Type;
 
 // ── Push Event Payloads ──────────────────────────────────────────────
 
@@ -251,5 +281,17 @@ export const SymphonyRpcSchemas = {
   getWorkflow: {
     input: SymphonyGetWorkflowInput,
     output: SymphonyWorkflow,
+  },
+  startOrchestrator: {
+    input: SymphonyStartOrchestratorInput,
+    output: Schema.Void,
+  },
+  stopOrchestrator: {
+    input: SymphonyStopOrchestratorInput,
+    output: Schema.Void,
+  },
+  getOrchestratorStatus: {
+    input: SymphonyGetOrchestratorStatusInput,
+    output: SymphonyOrchestratorStatus,
   },
 } as const;

@@ -5,14 +5,7 @@
  *
  * @module symphony/Layers/SymphonyAgentRunner
  */
-import {
-  SymphonyRunId,
-  ThreadId,
-  type ProviderRuntimeEvent,
-  type SymphonyRun,
-  type SymphonyTask,
-  type SymphonyWorkflow,
-} from "@t3tools/contracts";
+import { SymphonyRunId, ThreadId, type SymphonyRun } from "@t3tools/contracts";
 import { Effect, Layer, Option, Stream } from "effect";
 import { randomUUID } from "node:crypto";
 
@@ -104,6 +97,7 @@ const makeSymphonyAgentRunner = Effect.gen(function* () {
         attempt,
         prompt,
         startedAt: now,
+        lastActivityAt: now,
       });
 
       // Update task with current run
@@ -169,6 +163,7 @@ const makeSymphonyAgentRunner = Effect.gen(function* () {
             error: null,
             tokenUsage: null,
             startedAt: now,
+            lastActivityAt: now,
             completedAt: null,
           }) as SymphonyRun,
       );

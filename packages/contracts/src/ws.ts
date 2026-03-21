@@ -42,12 +42,15 @@ import {
   SYMPHONY_WS_METHODS,
   SymphonyCreateTaskInput,
   SymphonyDeleteTaskInput,
+  SymphonyGetOrchestratorStatusInput,
   SymphonyGetRunHistoryInput,
   SymphonyGetWorkflowInput,
   SymphonyListTasksInput,
   SymphonyMoveTaskInput,
   SymphonyRetryTaskInput,
   SymphonyRunEventPayload,
+  SymphonyStartOrchestratorInput,
+  SymphonyStopOrchestratorInput,
   SymphonyStopTaskInput,
   SymphonyTaskEventPayload,
   SymphonyUpdateTaskInput,
@@ -101,6 +104,9 @@ export const WS_METHODS = {
   symphonyStopTask: SYMPHONY_WS_METHODS.stopTask,
   symphonyGetRunHistory: SYMPHONY_WS_METHODS.getRunHistory,
   symphonyGetWorkflow: SYMPHONY_WS_METHODS.getWorkflow,
+  symphonyStartOrchestrator: SYMPHONY_WS_METHODS.startOrchestrator,
+  symphonyStopOrchestrator: SYMPHONY_WS_METHODS.stopOrchestrator,
+  symphonyGetOrchestratorStatus: SYMPHONY_WS_METHODS.getOrchestratorStatus,
 } as const;
 
 // ── Push Event Channels ──────────────────────────────────────────────
@@ -178,6 +184,9 @@ const WebSocketRequestBody = Schema.Union([
   tagRequestBody(WS_METHODS.symphonyStopTask, SymphonyStopTaskInput),
   tagRequestBody(WS_METHODS.symphonyGetRunHistory, SymphonyGetRunHistoryInput),
   tagRequestBody(WS_METHODS.symphonyGetWorkflow, SymphonyGetWorkflowInput),
+  tagRequestBody(WS_METHODS.symphonyStartOrchestrator, SymphonyStartOrchestratorInput),
+  tagRequestBody(WS_METHODS.symphonyStopOrchestrator, SymphonyStopOrchestratorInput),
+  tagRequestBody(WS_METHODS.symphonyGetOrchestratorStatus, SymphonyGetOrchestratorStatusInput),
 ]);
 
 export const WebSocketRequest = Schema.Struct({

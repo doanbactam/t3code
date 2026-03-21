@@ -31,10 +31,7 @@ import {
   type ProviderAdapterError,
 } from "../Errors.ts";
 import { CodexAdapter, type CodexAdapterShape } from "../Services/CodexAdapter.ts";
-import {
-  CodexAppServerManager,
-  type CodexAppServerStartSessionInput,
-} from "../codex/index.ts";
+import { CodexAppServerManager, type CodexAppServerStartSessionInput } from "../codex/index.ts";
 import { resolveAttachmentPath } from "../../attachmentStore.ts";
 import { ServerConfig } from "../../config.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";

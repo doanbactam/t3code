@@ -13,6 +13,8 @@ import {
   type SymphonyCreateTaskInput,
   type SymphonyUpdateTaskInput,
   type SymphonyMoveTaskInput,
+  type SymphonyStartOrchestratorInput,
+  type SymphonyOrchestratorStatus,
   ServerConfigUpdatedPayload,
   WS_CHANNELS,
   WS_METHODS,
@@ -206,6 +208,15 @@ export function createWsNativeApi(): NativeApi {
         transport.request<{ workflow: SymphonyWorkflow }>(SYMPHONY_WS_METHODS.getWorkflow, {
           projectId,
         }),
+      startOrchestrator: (input: SymphonyStartOrchestratorInput) =>
+        transport.request(SYMPHONY_WS_METHODS.startOrchestrator, input),
+      stopOrchestrator: (projectId: ProjectId) =>
+        transport.request(SYMPHONY_WS_METHODS.stopOrchestrator, { projectId }),
+      getOrchestratorStatus: (projectId: ProjectId) =>
+        transport.request<{ status: SymphonyOrchestratorStatus }>(
+          SYMPHONY_WS_METHODS.getOrchestratorStatus,
+          { projectId },
+        ),
       onTaskEvent: (callback) =>
         transport.subscribe(SYMPHONY_WS_CHANNELS.taskEvent, (message) => callback(message.data)),
       onRunEvent: (callback) =>

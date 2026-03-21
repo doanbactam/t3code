@@ -15,6 +15,7 @@ import type {
   ProjectId,
   SymphonyTaskPriority,
   SymphonyTaskState,
+  SymphonyOrchestratorStatus,
 } from "@t3tools/contracts";
 import { create } from "zustand";
 
@@ -29,6 +30,11 @@ export interface SymphonyState {
   // Data
   tasks: Map<SymphonyTaskId, SymphonyTask>;
   runs: Map<SymphonyRunId, SymphonyRun>;
+
+  // Orchestrator
+  orchestratorStatus: SymphonyOrchestratorStatus | null;
+
+  isOrchestratorStarting: boolean;
 
   // Selection
   selectedTaskId: SymphonyTaskId | null;
@@ -52,6 +58,10 @@ export interface SymphonyActions {
   setRuns: (runs: SymphonyRun[]) => void;
   upsertRun: (run: SymphonyRun) => void;
 
+  // Orchestrator
+  setOrchestratorStatus: (status: SymphonyOrchestratorStatus | null) => void;
+  setOrchestratorStarting: (starting: boolean) => void;
+
   // Selection
   selectTask: (taskId: SymphonyTaskId | null) => void;
 
@@ -74,6 +84,8 @@ export interface SymphonyActions {
 const initialState: SymphonyState = {
   tasks: new Map(),
   runs: new Map(),
+  orchestratorStatus: null,
+  isOrchestratorStarting: false,
   selectedTaskId: null,
   boardFilter: {},
   hydrated: false,
@@ -136,6 +148,10 @@ export const useSymphonyStore = create<SymphonyState & SymphonyActions>()((set, 
       return { runs: newRuns };
     }),
 
+  // Orchestrator
+  setOrchestratorStatus: (status) => set({ orchestratorStatus: status }),
+  setOrchestratorStarting: (starting) => set({ isOrchestratorStarting: starting }),
+
   // Selection
   selectTask: (taskId) => set({ selectedTaskId: taskId }),
 
@@ -187,3 +203,6 @@ export const selectSelectedTask = (state: SymphonyState) =>
 
 export const selectActiveRuns = (state: SymphonyState) =>
   Array.from(state.runs.values()).filter((run) => run.status === "running");
+
+export const selectOrchestratorStatus = (state: SymphonyState) => state.orchestratorStatus;
+export const selectIsOrchestratorStarting = (state: SymphonyState) => state.isOrchestratorStarting;

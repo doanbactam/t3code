@@ -73,7 +73,9 @@ const makeOrchestrationCommandReceiptRepository = Effect.gen(function* () {
   // Use toPersistenceError to distinguish between SQL and decode errors
   const getByCommandId: OrchestrationCommandReceiptRepositoryShape["getByCommandId"] = (input) =>
     findReceiptByCommandId(input).pipe(
-      Effect.mapError(toPersistenceError("OrchestrationCommandReceiptRepository.getByCommandId:query")),
+      Effect.mapError(
+        toPersistenceError("OrchestrationCommandReceiptRepository.getByCommandId:query"),
+      ),
     );
 
   return {

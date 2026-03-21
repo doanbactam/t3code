@@ -71,25 +71,21 @@ const makeSymphonyTaskRepository = Effect.gen(function* () {
     Request: Schema.Struct({ taskId: Schema.String }),
     Result: SymphonyTaskDbRowSchema,
     execute: ({ taskId }) =>
-      sql.unsafe(`SELECT ${SELECT_COLUMNS} FROM symphony_tasks WHERE id = '${taskId}'`),
+      sql`SELECT ${sql.unsafe(SELECT_COLUMNS)} FROM symphony_tasks WHERE id = ${taskId}`,
   });
 
   const findAllByProject = SqlSchema.findAll({
     Request: Schema.Struct({ projectId: Schema.String }),
     Result: SymphonyTaskDbRowSchema,
     execute: ({ projectId }) =>
-      sql.unsafe(
-        `SELECT ${SELECT_COLUMNS} FROM symphony_tasks WHERE project_id = '${projectId}' ORDER BY created_at ASC`,
-      ),
+      sql`SELECT ${sql.unsafe(SELECT_COLUMNS)} FROM symphony_tasks WHERE project_id = ${projectId} ORDER BY created_at ASC`,
   });
 
   const findCandidateRows = SqlSchema.findAll({
     Request: Schema.Struct({ projectId: Schema.String, limit: Schema.Number }),
     Result: SymphonyTaskDbRowSchema,
     execute: ({ projectId, limit }) =>
-      sql.unsafe(
-        `SELECT ${SELECT_COLUMNS} FROM symphony_tasks WHERE project_id = '${projectId}' AND state = 'queued' ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END ASC, created_at ASC LIMIT ${limit}`,
-      ),
+      sql`SELECT ${sql.unsafe(SELECT_COLUMNS)} FROM symphony_tasks WHERE project_id = ${projectId} AND state = 'queued' ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 END ASC, created_at ASC LIMIT ${limit}`,
   });
 
   const create: SymphonyTaskRepositoryShape["create"] = (input) =>
@@ -170,12 +166,10 @@ const makeSymphonyTaskRepository = Effect.gen(function* () {
     }).pipe(Effect.mapError(toPersistenceSqlError("SymphonyTaskRepository.update:query")));
 
   const deleteById: SymphonyTaskRepositoryShape["deleteById"] = (taskId) =>
-    sql
-      .unsafe(`DELETE FROM symphony_tasks WHERE id = '${taskId}'`)
-      .pipe(
-        Effect.asVoid,
-        Effect.mapError(toPersistenceSqlError("SymphonyTaskRepository.deleteById:query")),
-      );
+    sql`DELETE FROM symphony_tasks WHERE id = ${taskId}`.pipe(
+      Effect.asVoid,
+      Effect.mapError(toPersistenceSqlError("SymphonyTaskRepository.deleteById:query")),
+    );
 
   const moveState: SymphonyTaskRepositoryShape["moveState"] = (input) =>
     Effect.gen(function* () {

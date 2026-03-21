@@ -21,7 +21,6 @@ import {
   ProjectId,
   SymphonyTaskId,
   SYMPHONY_WS_CHANNELS,
-  SYMPHONY_WS_METHODS,
   ThreadId,
   WS_CHANNELS,
   WS_METHODS,
@@ -86,6 +85,7 @@ import { expandHomePath } from "./os-jank.ts";
 import { makeServerPushBus } from "./wsServer/pushBus.ts";
 import { makeServerReadiness } from "./wsServer/readiness.ts";
 import { decodeJsonResult, formatSchemaError } from "@t3tools/shared/schemaJson";
+import { setServerPushBus } from "./symphony/Layers/SymphonyPushService.ts";
 
 /**
  * ServerShape - Service API for server lifecycle control.
@@ -266,6 +266,50 @@ class RouteRequestError extends Schema.TaggedErrorClass<RouteRequestError>()("Ro
   message: Schema.String,
 }) {}
 
+/**
+ * Valid state transitions for SymphonyTask workflow.
+ * Key: current state, Value: set of allowed next states
+ */
+const VALID_STATE_TRANSITIONS: Record<string, Set<string>> = {
+  backlog: new Set(["queued"]),
+  queued: new Set(["running", "backlog"]),
+  running: new Set(["review", "failed"]),
+  review: new Set(["done", "queued"]),
+  failed: new Set(["queued"]),
+  done: new Set([]), // Terminal state - no transitions allowed
+};
+
+/**
+ * Validates a state transition is allowed.
+ * Returns a RouteRequestError if transition is invalid.
+ */
+function validateStateTransition(
+  currentState: string,
+  newState: string,
+): Effect.Effect<void, RouteRequestError> {
+  // Cannot move to same state
+  if (currentState === newState) {
+    return Effect.fail(
+      new RouteRequestError({
+        message: `Task is already in state '${currentState}'. No transition needed.`,
+      }),
+    );
+  }
+
+  // Check if transition is allowed
+  const allowedStates = VALID_STATE_TRANSITIONS[currentState];
+  if (!allowedStates || !allowedStates.has(newState)) {
+    const allowed = allowedStates ? Array.from(allowedStates).join(", ") : "none";
+    return Effect.fail(
+      new RouteRequestError({
+        message: `Invalid state transition: '${currentState}' → '${newState}'. Allowed transitions: ${allowed}`,
+      }),
+    );
+  }
+
+  return Effect.void;
+}
+
 export const createServer = Effect.fn(function* (): Effect.fn.Return<
   http.Server,
   ServerLifecycleError,
@@ -338,6 +382,8 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
     clients,
     logOutgoingPush,
   });
+  // Register the push bus with SymphonyPushService for broadcasting run/task events
+  setServerPushBus(pushBus);
   yield* readiness.markPushBusReady;
   yield* keybindingsManager.start.pipe(
     Effect.mapError(
@@ -950,7 +996,7 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
           projectId: body.projectId,
           title: body.title,
           description: body.description ?? "",
-          state: "backlog",
+          state: "queued",
           priority: body.priority ?? "medium",
           labels: body.labels ?? [],
           workspaceKey,
@@ -970,7 +1016,6 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
 
       case WS_METHODS.symphonyUpdateTask: {
         const body = stripRequestTag(request.body);
-        const taskBeforeOption = yield* symphonyTaskRepo.getById(body.taskId);
         yield* symphonyTaskRepo.update({
           taskId: body.taskId,
           title: body.title,
@@ -1006,39 +1051,72 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
 
       case WS_METHODS.symphonyMoveTask: {
         const body = stripRequestTag(request.body);
+
+        // Validate task exists
+        const taskOption = yield* symphonyTaskRepo.getById(body.taskId);
+        const task = Option.getOrUndefined(taskOption);
+        if (!task) {
+          return yield* new RouteRequestError({
+            message: `Task not found: ${body.taskId}`,
+          });
+        }
+
+        // Validate state transition
+        yield* validateStateTransition(task.state, body.newState);
+
+        // Perform state transition
         yield* symphonyTaskRepo.moveState({
           taskId: body.taskId,
           newState: body.newState,
           updatedAt: new Date().toISOString(),
         });
-        const taskOption = yield* symphonyTaskRepo.getById(body.taskId);
-        const task = Option.getOrUndefined(taskOption);
-        if (task) {
+
+        // Fetch updated task and publish event
+        const updatedTaskOption = yield* symphonyTaskRepo.getById(body.taskId);
+        const updatedTask = Option.getOrUndefined(updatedTaskOption);
+        if (updatedTask) {
           yield* pushBus.publishAll(SYMPHONY_WS_CHANNELS.taskEvent, {
             kind: "state-changed",
-            task,
+            task: updatedTask,
           });
         }
-        return { task };
+        return { task: updatedTask };
       }
 
       case WS_METHODS.symphonyRetryTask: {
         const body = stripRequestTag(request.body);
+        const taskOption = yield* symphonyTaskRepo.getById(body.taskId);
+        const task = Option.getOrUndefined(taskOption);
+
+        if (!task) {
+          return yield* new RouteRequestError({
+            message: `Task not found: ${body.taskId}`,
+          });
+        }
+
+        // Validate retry limit (default max 3 retries)
+        const maxRetries = 3; // TODO: Pull from workflow config
+        if (task.runCount >= maxRetries) {
+          return yield* new RouteRequestError({
+            message: `Task has exceeded maximum retry limit (${maxRetries} retries). Run count: ${task.runCount}`,
+          });
+        }
+
         // Move task back to queued state for retry
         yield* symphonyTaskRepo.moveState({
           taskId: body.taskId,
           newState: "queued",
           updatedAt: new Date().toISOString(),
         });
-        const taskOption = yield* symphonyTaskRepo.getById(body.taskId);
-        const task = Option.getOrUndefined(taskOption);
-        if (task) {
+        const updatedTaskOption = yield* symphonyTaskRepo.getById(body.taskId);
+        const updatedTask = Option.getOrUndefined(updatedTaskOption);
+        if (updatedTask) {
           yield* pushBus.publishAll(SYMPHONY_WS_CHANNELS.taskEvent, {
             kind: "state-changed",
-            task,
+            task: updatedTask,
           });
         }
-        return { task };
+        return { task: updatedTask };
       }
 
       case WS_METHODS.symphonyStopTask: {
@@ -1077,6 +1155,36 @@ export const createServer = Effect.fn(function* (): Effect.fn.Return<
         }
         const parsed = yield* symphonyWorkflowLoader.load(body.projectId, project.workspaceRoot);
         return { workflow: parsed.workflow };
+      }
+
+      case WS_METHODS.symphonyStartOrchestrator: {
+        const body = stripRequestTag(request.body);
+        const snapshot = yield* projectionReadModelQuery.getSnapshot();
+        const project = snapshot.projects.find((p) => p.id === body.projectId);
+        if (!project) {
+          return yield* new RouteRequestError({
+            message: `Project not found: ${body.projectId}`,
+          });
+        }
+        yield* symphonyOrchestrator.start({
+          projectId: body.projectId,
+          projectRoot: project.workspaceRoot,
+          maxConcurrency: body.maxConcurrency ?? 1,
+          stallTimeoutMs: body.stallTimeoutMs ?? 60000,
+        });
+        return {};
+      }
+
+      case WS_METHODS.symphonyStopOrchestrator: {
+        const body = stripRequestTag(request.body);
+        yield* symphonyOrchestrator.stop(body.projectId);
+        return {};
+      }
+
+      case WS_METHODS.symphonyGetOrchestratorStatus: {
+        const body = stripRequestTag(request.body);
+        const status = yield* symphonyOrchestrator.getStatus(body.projectId);
+        return { status };
       }
 
       default: {

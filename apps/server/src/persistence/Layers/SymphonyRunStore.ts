@@ -33,6 +33,7 @@ const SELECT_COLUMNS = `
   error,
   token_usage_json AS "tokenUsage",
   started_at AS "startedAt",
+  last_activity_at AS "lastActivityAt",
   completed_at AS "completedAt"
 `;
 
@@ -47,15 +48,16 @@ const makeSymphonyRunRepository = Effect.gen(function* () {
       attempt: Schema.Number,
       prompt: Schema.String,
       startedAt: Schema.String,
+      lastActivityAt: Schema.String,
     }),
     execute: (row) =>
       sql`
         INSERT INTO symphony_runs (
-          id, task_id, thread_id, attempt, status, prompt, started_at
+          id, task_id, thread_id, attempt, status, prompt, started_at, last_activity_at
         )
         VALUES (
           ${row.id}, ${row.taskId}, ${row.threadId}, ${row.attempt},
-          'running', ${row.prompt}, ${row.startedAt}
+          'running', ${row.prompt}, ${row.startedAt}, ${row.lastActivityAt}
         )
       `,
   });
@@ -64,32 +66,28 @@ const makeSymphonyRunRepository = Effect.gen(function* () {
     Request: Schema.Struct({ runId: Schema.String }),
     Result: SymphonyRunDbRowSchema,
     execute: ({ runId }) =>
-      sql.unsafe(`SELECT ${SELECT_COLUMNS} FROM symphony_runs WHERE id = '${runId}'`),
+      sql`SELECT ${sql.unsafe(SELECT_COLUMNS)} FROM symphony_runs WHERE id = ${runId}`,
   });
 
   const findAllByTask = SqlSchema.findAll({
     Request: Schema.Struct({ taskId: Schema.String }),
     Result: SymphonyRunDbRowSchema,
     execute: ({ taskId }) =>
-      sql.unsafe(
-        `SELECT ${SELECT_COLUMNS} FROM symphony_runs WHERE task_id = '${taskId}' ORDER BY attempt ASC`,
-      ),
+      sql`SELECT ${sql.unsafe(SELECT_COLUMNS)} FROM symphony_runs WHERE task_id = ${taskId} ORDER BY attempt ASC`,
   });
 
   const findActive = SqlSchema.findAll({
     Request: Schema.Void,
     Result: SymphonyRunDbRowSchema,
     execute: () =>
-      sql.unsafe(
-        `SELECT ${SELECT_COLUMNS} FROM symphony_runs WHERE status = 'running' ORDER BY started_at ASC`,
-      ),
+      sql`SELECT ${sql.unsafe(SELECT_COLUMNS)} FROM symphony_runs WHERE status = ${"running"} ORDER BY started_at ASC`,
   });
 
   const findByThread = SqlSchema.findOneOption({
     Request: Schema.Struct({ threadId: Schema.String }),
     Result: SymphonyRunDbRowSchema,
     execute: ({ threadId }) =>
-      sql.unsafe(`SELECT ${SELECT_COLUMNS} FROM symphony_runs WHERE thread_id = '${threadId}'`),
+      sql`SELECT ${sql.unsafe(SELECT_COLUMNS)} FROM symphony_runs WHERE thread_id = ${threadId}`,
   });
 
   const create: SymphonyRunRepositoryShape["create"] = (input) =>
@@ -100,6 +98,7 @@ const makeSymphonyRunRepository = Effect.gen(function* () {
       attempt: input.attempt,
       prompt: input.prompt,
       startedAt: input.startedAt,
+      lastActivityAt: input.lastActivityAt,
     }).pipe(
       Effect.mapError(
         toPersistenceSqlOrDecodeError(
@@ -129,11 +128,12 @@ const makeSymphonyRunRepository = Effect.gen(function* () {
   const complete: SymphonyRunRepositoryShape["complete"] = (input) =>
     sql
       .unsafe(
-        `UPDATE symphony_runs SET status = ?, error = ?, token_usage_json = ?, completed_at = ? WHERE id = ?`,
+        `UPDATE symphony_runs SET status = ?, error = ?, token_usage_json = ?, completed_at = ?, last_activity_at = ? WHERE id = ?`,
         [
           input.status,
           input.error ?? null,
           input.tokenUsage ? JSON.stringify(input.tokenUsage) : null,
+          input.completedAt,
           input.completedAt,
           input.runId as string,
         ],
@@ -141,6 +141,20 @@ const makeSymphonyRunRepository = Effect.gen(function* () {
       .pipe(
         Effect.asVoid,
         Effect.mapError(toPersistenceSqlError("SymphonyRunRepository.complete:query")),
+      );
+
+  const updateLastActivity: SymphonyRunRepositoryShape["updateLastActivity"] = (
+    runId,
+    lastActivityAt,
+  ) =>
+    sql
+      .unsafe(`UPDATE symphony_runs SET last_activity_at = ? WHERE id = ?`, [
+        lastActivityAt,
+        runId as string,
+      ])
+      .pipe(
+        Effect.asVoid,
+        Effect.mapError(toPersistenceSqlError("SymphonyRunRepository.updateLastActivity:query")),
       );
 
   const listByTask: SymphonyRunRepositoryShape["listByTask"] = (taskId) =>
@@ -186,6 +200,7 @@ const makeSymphonyRunRepository = Effect.gen(function* () {
     create,
     getById,
     complete,
+    updateLastActivity,
     listByTask,
     getActive,
     getByThreadId,

@@ -55,6 +55,8 @@ import type {
   SymphonyMoveTaskInput,
   SymphonyTaskEventPayload,
   SymphonyRunEventPayload,
+  SymphonyStartOrchestratorInput,
+  SymphonyOrchestratorStatus,
 } from "./symphony";
 import type { ProjectId } from "./baseSchemas";
 import { EditorId } from "./editor";
@@ -192,6 +194,11 @@ export interface NativeApi {
     stopTask: (taskId: SymphonyTaskId) => Promise<{ task: SymphonyTask }>;
     getRunHistory: (taskId: SymphonyTaskId) => Promise<{ runs: SymphonyRun[] }>;
     getWorkflow: (projectId: ProjectId) => Promise<{ workflow: SymphonyWorkflow }>;
+    startOrchestrator: (input: SymphonyStartOrchestratorInput) => Promise<void>;
+    stopOrchestrator: (projectId: ProjectId) => Promise<void>;
+    getOrchestratorStatus: (
+      projectId: ProjectId,
+    ) => Promise<{ status: SymphonyOrchestratorStatus }>;
     onTaskEvent: (callback: (event: SymphonyTaskEventPayload) => void) => () => void;
     onRunEvent: (callback: (event: SymphonyRunEventPayload) => void) => () => void;
   };
