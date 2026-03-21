@@ -55,6 +55,7 @@ layer("SymphonyRunRepository", (it) => {
         attempt: 1,
         prompt: "Fix the bug in auth module",
         startedAt: now,
+        lastActivityAt: now,
       });
 
       const result = yield* repository.getById(runId);
@@ -100,6 +101,7 @@ layer("SymphonyRunRepository", (it) => {
         attempt: 1,
         prompt: "Task without thread",
         startedAt: now,
+        lastActivityAt: now,
       });
 
       const result = yield* repository.getById(runId);
@@ -127,6 +129,7 @@ layer("SymphonyRunRepository", (it) => {
         attempt: 1,
         prompt: "Complete this task",
         startedAt: now,
+        lastActivityAt: now,
       });
 
       yield* repository.complete({
@@ -165,6 +168,7 @@ layer("SymphonyRunRepository", (it) => {
         attempt: 1,
         prompt: "This will fail",
         startedAt: now,
+        lastActivityAt: now,
       });
 
       yield* repository.complete({
@@ -201,6 +205,7 @@ layer("SymphonyRunRepository", (it) => {
         attempt: 1,
         prompt: "First attempt",
         startedAt: baseTime,
+        lastActivityAt: baseTime,
       });
 
       yield* repository.complete({
@@ -217,6 +222,7 @@ layer("SymphonyRunRepository", (it) => {
         attempt: 2,
         prompt: "Second attempt",
         startedAt: "2026-03-20T14:10:00.000Z",
+        lastActivityAt: "2026-03-20T14:10:00.000Z",
       });
 
       const runs = yield* repository.listByTask(taskId);
@@ -254,6 +260,7 @@ layer("SymphonyRunRepository", (it) => {
         attempt: 1,
         prompt: "Active task",
         startedAt: baseTime,
+        lastActivityAt: baseTime,
       });
 
       // Create completed run
@@ -264,6 +271,7 @@ layer("SymphonyRunRepository", (it) => {
         attempt: 1,
         prompt: "Completed task",
         startedAt: baseTime,
+        lastActivityAt: baseTime,
       });
       yield* repository.complete({
         runId: completedRunId,
@@ -302,6 +310,7 @@ layer("SymphonyRunRepository", (it) => {
         attempt: 1,
         prompt: "Run with thread",
         startedAt: now,
+        lastActivityAt: now,
       });
 
       const result = yield* repository.getByThreadId(threadId);
@@ -339,6 +348,7 @@ layer("SymphonyRunRepository", (it) => {
         attempt: 1,
         prompt: "Will be cancelled",
         startedAt: now,
+        lastActivityAt: now,
       });
 
       yield* repository.complete({

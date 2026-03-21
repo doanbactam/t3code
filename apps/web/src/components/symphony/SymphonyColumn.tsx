@@ -21,32 +21,44 @@ export function SymphonyColumn({ title, tasks, state }: SymphonyColumnProps) {
     id: `column:${state}`,
     data: { type: "column", state },
   });
+  const meta = SYMPHONY_STATE_META[state];
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "flex min-h-screen flex-col rounded-lg border bg-card shadow-sm transition-[border-color,box-shadow,background-color] duration-150",
-        SYMPHONY_STATE_META[state].columnClassName,
+        "flex min-h-[24rem] flex-col overflow-hidden rounded-2xl border bg-card/95 shadow-sm transition-[border-color,box-shadow,background-color,transform] duration-150",
+        meta.columnClassName,
         isOver && "border-primary/70 shadow-md ring-2 ring-primary/20",
       )}
     >
-      <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3 dark:border-neutral-800 shrink-0">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        <span className="rounded-full bg-neutral-200 px-2.5 py-1 text-xs font-semibold text-neutral-700 tabular-nums dark:bg-neutral-800 dark:text-neutral-300">
-          {tasks.length}
-        </span>
+      <div className="shrink-0 border-b border-neutral-200/80 px-4 py-4 dark:border-neutral-800">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={cn("h-2.5 w-2.5 rounded-full", meta.accentClassName)} />
+              <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">{meta.description}</p>
+          </div>
+          <span className="rounded-full bg-neutral-200 px-2.5 py-1 text-xs font-semibold text-neutral-700 tabular-nums dark:bg-neutral-800 dark:text-neutral-300">
+            {tasks.length}
+          </span>
+        </div>
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
-        <div className="space-y-2 p-3">
+        <div className="space-y-3 p-3">
           {tasks.map((task) => (
             <SymphonyTaskCard key={task.id} task={task} />
           ))}
 
           {tasks.length === 0 && (
-            <div className="flex h-40 items-center justify-center text-xs text-muted-foreground">
-              No tasks
+            <div className="flex h-44 flex-col items-center justify-center rounded-2xl border border-dashed border-neutral-300/80 bg-background/70 px-4 text-center dark:border-neutral-700/80">
+              <p className="text-sm font-medium text-foreground">{meta.emptyTitle}</p>
+              <p className="mt-2 max-w-[20rem] text-xs leading-5 text-muted-foreground">
+                {meta.emptyDescription}
+              </p>
             </div>
           )}
         </div>

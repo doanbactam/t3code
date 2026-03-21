@@ -6,7 +6,6 @@
 import type { ProjectId, SymphonyRun, SymphonyTaskId } from "@t3tools/contracts";
 import { ServiceMap } from "effect";
 import type { Effect } from "effect";
-import type { Scope } from "effect/Scope";
 
 import type { SymphonyError } from "../Errors.ts";
 import type { ProjectionRepositoryError } from "../../persistence/Errors.ts";
@@ -40,7 +39,7 @@ export interface RetryEntry {
 export interface SymphonyOrchestratorShape {
   readonly start: (
     config: ProjectOrchestratorConfig,
-  ) => Effect.Effect<void, SymphonyError | ProjectionRepositoryError, Scope>;
+  ) => Effect.Effect<void, SymphonyError | ProjectionRepositoryError>;
   readonly stop: (projectId: ProjectId) => Effect.Effect<void>;
   readonly getStatus: (projectId: ProjectId) => Effect.Effect<OrchestratorStatus>;
   readonly getActiveRuns: () => Effect.Effect<

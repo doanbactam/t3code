@@ -39,7 +39,7 @@ const DEFAULTS = {
 interface ProjectState {
   config: ProjectOrchestratorConfig;
   fiber: Fiber.Fiber<void, unknown>;
-  activeRuns: Set<string>;
+  activeRuns: Set<SymphonyRun["id"]>;
   retryQueue: RetryEntry[];
 }
 
@@ -257,7 +257,7 @@ const makeSymphonyOrchestrator = Effect.gen(function* () {
    * Monitor a single run for completion/timeout.
    * Handles run result and moves task to retry or done state.
    */
-  const monitorRun = (projectId: ProjectId, runId: string, task: SymphonyTask) =>
+  const monitorRun = (projectId: ProjectId, runId: SymphonyRun["id"], task: SymphonyTask) =>
     Effect.gen(function* () {
       const states = yield* Ref.get(projectStates);
       const state = states.get(projectId);
@@ -582,7 +582,7 @@ const makeSymphonyOrchestrator = Effect.gen(function* () {
               ),
             ),
           ),
-          Effect.forkScoped,
+          Effect.forkDetach,
           Effect.andThen(() => Effect.void),
         );
       }
@@ -618,7 +618,7 @@ const makeSymphonyOrchestrator = Effect.gen(function* () {
         stallTimeoutMs: config.stallTimeoutMs ?? DEFAULTS.stallTimeoutMs,
       };
 
-      const fiber = yield* Effect.forkScoped(pollLoop(config.projectId));
+      const fiber = yield* Effect.forkDetach(pollLoop(config.projectId));
 
       yield* Ref.update(projectStates, (states) => {
         return new Map(states).set(config.projectId, {

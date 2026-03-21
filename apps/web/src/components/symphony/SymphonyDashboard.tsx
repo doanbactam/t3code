@@ -4,7 +4,7 @@
  * Main Symphony dashboard with Kanban board.
  */
 import type { SymphonyTask, SymphonyWorkflow } from "@t3tools/contracts";
-import { PauseIcon, PlayIcon, PlusIcon } from "lucide-react";
+import { PauseIcon, PlayIcon, PlusIcon, SparklesIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "~/components/ui/button";
@@ -227,6 +227,11 @@ export function SymphonyDashboard() {
 
     return parts.join(" | ");
   }, [workflow]);
+  const totalTasks = tasks.length;
+  const hasActiveWork = queued.length + running.length + review.length + failed.length > 0;
+  const orchestratorTone = orchestratorStatus?.isRunning
+    ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:ring-emerald-900"
+    : "bg-neutral-100 text-neutral-700 ring-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:ring-neutral-800";
 
   if (!projectId) {
     return (
@@ -248,54 +253,82 @@ export function SymphonyDashboard() {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-card px-6 py-4">
-        <div className="min-w-0">
-          <h1 className="truncate font-semibold text-lg">Symphony</h1>
-          <div className="text-sm text-muted-foreground">
-            {project?.name ?? "Project"}
-            {workflowSummary ? ` | ${workflowSummary}` : ""}
-            {orchestratorStatus?.isRunning && (
-              <span className="ml-2 inline-flex items-center gap-1 text-green-600">
-                <span className="size-2 animate-pulse rounded-full bg-green-500" />
-                {orchestratorStatus.activeRunCount} running
+    <div className="flex h-full flex-col bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_28%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.08),transparent_24%)]">
+      <div className="border-b bg-card/95 px-6 py-5 backdrop-blur">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 max-w-4xl">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-xl font-semibold tracking-tight">Symphony</h1>
+              <span
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${orchestratorTone}`}
+              >
+                <span
+                  className={`size-2 rounded-full ${orchestratorStatus?.isRunning ? "animate-pulse bg-emerald-500" : "bg-neutral-400 dark:bg-neutral-500"}`}
+                />
+                {orchestratorStatus?.isRunning ? "Orchestrator running" : "Orchestrator idle"}
               </span>
-            )}
+            </div>
+
+            <p className="mt-2 text-sm text-muted-foreground">{project?.name ?? "Project"}</p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+              Coordinate backlog, execution, and review in one board so autonomous work stays
+              visible and easy to steer.
+            </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {workflowSummary ? (
+                <span className="rounded-full border border-neutral-200 bg-background px-3 py-1 dark:border-neutral-800">
+                  {workflowSummary}
+                </span>
+              ) : null}
+              <span className="rounded-full border border-neutral-200 bg-background px-3 py-1 dark:border-neutral-800">
+                {totalTasks} total task{totalTasks !== 1 ? "s" : ""}
+              </span>
+              <span className="rounded-full border border-neutral-200 bg-background px-3 py-1 dark:border-neutral-800">
+                {orchestratorStatus?.activeRunCount ?? 0} running
+              </span>
+              {workflow?.config.agent?.stallTimeoutMs ? (
+                <span className="rounded-full border border-neutral-200 bg-background px-3 py-1 dark:border-neutral-800">
+                  Stall timeout {Math.round(workflow.config.agent.stallTimeoutMs / 1000)}s
+                </span>
+              ) : null}
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {orchestratorStatus?.isRunning ? (
+
+          <div className="flex items-center gap-3">
+            {orchestratorStatus?.isRunning ? (
+              <Button
+                variant="outline"
+                onClick={handleStopOrchestrator}
+                disabled={isOrchestratorStarting}
+                title="Stop the orchestrator"
+              >
+                <PauseIcon className="size-4" />
+                Stop
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={handleStartOrchestrator}
+                disabled={isOrchestratorStarting}
+                title="Start the orchestrator"
+              >
+                <PlayIcon className="size-4" />
+                {isOrchestratorStarting ? "Starting..." : "Start"}
+              </Button>
+            )}
             <Button
-              variant="outline"
-              onClick={handleStopOrchestrator}
-              disabled={isOrchestratorStarting}
-              title="Stop the orchestrator"
+              onClick={() => {
+                setEditingTask(null);
+                setTaskFormOpen(true);
+              }}
+              title="Create a new task"
+              className="gap-2 font-semibold"
             >
-              <PauseIcon className="size-4" />
-              Stop
+              <PlusIcon className="size-4" />
+              New Task
             </Button>
-          ) : (
-            <Button
-              variant="outline"
-              onClick={handleStartOrchestrator}
-              disabled={isOrchestratorStarting}
-              title="Start the orchestrator"
-            >
-              <PlayIcon className="size-4" />
-              {isOrchestratorStarting ? "Starting..." : "Start"}
-            </Button>
-          )}
-          <Button
-            onClick={() => {
-              setEditingTask(null);
-              setTaskFormOpen(true);
-            }}
-            title="Create a new task"
-            className="gap-2 font-semibold"
-          >
-            <PlusIcon className="size-4" />
-            New Task
-          </Button>
+          </div>
         </div>
       </div>
 
@@ -309,14 +342,60 @@ export function SymphonyDashboard() {
       />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <SymphonyBoard
-          backlog={backlog}
-          queued={queued}
-          running={running}
-          review={review}
-          done={done}
-          failed={failed}
-        />
+        {totalTasks === 0 ? (
+          <div className="flex flex-1 items-center justify-center p-6">
+            <div className="max-w-lg rounded-3xl border border-dashed border-neutral-300 bg-card/90 p-8 text-center shadow-sm dark:border-neutral-700">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <SparklesIcon className="size-5" />
+              </div>
+              <h2 className="mt-4 text-xl font-semibold tracking-tight">
+                Build your first Symphony workflow
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Create a task, move it into the queue, then start the orchestrator when you are
+                ready to let the system execute in parallel.
+              </p>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
+                <span className="rounded-full border border-neutral-200 px-3 py-1 dark:border-neutral-800">
+                  Capture work in backlog
+                </span>
+                <span className="rounded-full border border-neutral-200 px-3 py-1 dark:border-neutral-800">
+                  Queue what should run next
+                </span>
+                <span className="rounded-full border border-neutral-200 px-3 py-1 dark:border-neutral-800">
+                  Review results before done
+                </span>
+              </div>
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <Button
+                  onClick={() => {
+                    setEditingTask(null);
+                    setTaskFormOpen(true);
+                  }}
+                  className="gap-2"
+                >
+                  <PlusIcon className="size-4" />
+                  Create first task
+                </Button>
+                {!orchestratorStatus?.isRunning && hasActiveWork ? (
+                  <Button variant="outline" onClick={() => void handleStartOrchestrator()}>
+                    <PlayIcon className="size-4" />
+                    Start orchestrator
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <SymphonyBoard
+            backlog={backlog}
+            queued={queued}
+            running={running}
+            review={review}
+            done={done}
+            failed={failed}
+          />
+        )}
       </div>
 
       <SymphonyTaskDetailDialog

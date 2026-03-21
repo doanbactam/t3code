@@ -98,14 +98,20 @@ export function SymphonyBoard({
       onDragEnd={(event) => void handleDragEnd(event)}
       onDragCancel={() => setMovingTaskId(null)}
     >
-      {/* Responsive grid: 1 col mobile, 2 cols tablet, 3 cols desktop, 6 cols on 2xl */}
-      <div className="grid h-full grid-cols-1 gap-4 overflow-y-auto p-4 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
-        <SymphonyColumn title="Backlog" tasks={backlog} state="backlog" />
-        <SymphonyColumn title="Queued" tasks={queued} state="queued" />
-        <SymphonyColumn title="Running" tasks={running} state="running" />
-        <SymphonyColumn title="Review" tasks={review} state="review" />
-        <SymphonyColumn title="Done" tasks={done} state="done" />
-        <SymphonyColumn title="Failed" tasks={failed} state="failed" />
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="border-b border-dashed border-neutral-200 px-4 py-3 text-xs text-muted-foreground dark:border-neutral-800">
+          Drag tasks between lanes to re-prioritize work, trigger execution, and keep review
+          visible.
+        </div>
+
+        <div className="grid h-full min-h-0 grid-cols-1 gap-4 overflow-y-auto p-4 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+          <SymphonyColumn title="Backlog" tasks={backlog} state="backlog" />
+          <SymphonyColumn title="Queued" tasks={queued} state="queued" />
+          <SymphonyColumn title="Running" tasks={running} state="running" />
+          <SymphonyColumn title="Review" tasks={review} state="review" />
+          <SymphonyColumn title="Done" tasks={done} state="done" />
+          <SymphonyColumn title="Failed" tasks={failed} state="failed" />
+        </div>
       </div>
 
       {movingTaskId ? (

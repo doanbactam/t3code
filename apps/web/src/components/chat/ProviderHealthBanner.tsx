@@ -34,6 +34,10 @@ export const ProviderHealthBanner = memo(function ProviderHealthBanner({
     return null;
   }
 
+  if (!status) {
+    return null;
+  }
+
   const providerLabel =
     status.provider === "codex"
       ? "Codex"

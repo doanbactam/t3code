@@ -5,14 +5,16 @@ const ASSISTANT_CHARS_PER_LINE_FALLBACK = 72;
 const USER_CHARS_PER_LINE_FALLBACK = 56;
 const LINE_HEIGHT_PX = 22;
 const ASSISTANT_BASE_HEIGHT_PX = 78;
-const USER_BASE_HEIGHT_PX = 96;
+const USER_BASE_HEIGHT_PX = 72;
 const ATTACHMENTS_PER_ROW = 2;
 // Attachment thumbnails render with `max-h-[220px]` plus ~8px row gap.
 const USER_ATTACHMENT_ROW_HEIGHT_PX = 228;
 const USER_BUBBLE_WIDTH_RATIO = 0.8;
 const USER_BUBBLE_HORIZONTAL_PADDING_PX = 32;
 const ASSISTANT_MESSAGE_HORIZONTAL_PADDING_PX = 8;
-const USER_MONO_AVG_CHAR_WIDTH_PX = 8.4;
+// The virtualized row estimate should track the rendered user bubble, including
+// `max-w-[80%]` and monospace wrapping in the compact timeline.
+const USER_MONO_AVG_CHAR_WIDTH_PX = 7.4;
 const ASSISTANT_AVG_CHAR_WIDTH_PX = 7.2;
 const MIN_USER_CHARS_PER_LINE = 4;
 const MIN_ASSISTANT_CHARS_PER_LINE = 20;

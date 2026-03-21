@@ -24,3 +24,7 @@ export function ensureNativeApi(): NativeApi {
   }
   return api;
 }
+
+export function resetCachedNativeApiForTests(): void {
+  cachedApi = undefined;
+}
