@@ -316,7 +316,9 @@ const ProjectMetaUpdateCommand = Schema.Struct({
   projectId: ProjectId,
   title: Schema.optional(TrimmedNonEmptyString),
   workspaceRoot: Schema.optional(TrimmedNonEmptyString),
-  defaultModel: Schema.optional(TrimmedNonEmptyString),
+  // Use NullOr to allow clearing the value by passing null
+  // Omitting the field means "no change", passing null means "clear it"
+  defaultModel: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   scripts: Schema.optional(Schema.Array(ProjectScript)),
 });
 

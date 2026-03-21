@@ -2,7 +2,7 @@ import * as SqlClient from "effect/unstable/sql/SqlClient";
 import * as SqlSchema from "effect/unstable/sql/SqlSchema";
 import { Effect, Layer } from "effect";
 
-import { toPersistenceSqlError } from "../Errors.ts";
+import { toPersistenceSqlError, toPersistenceError } from "../Errors.ts";
 
 import {
   GetByCommandIdInput,
@@ -70,11 +70,10 @@ const makeOrchestrationCommandReceiptRepository = Effect.gen(function* () {
       Effect.mapError(toPersistenceSqlError("OrchestrationCommandReceiptRepository.upsert:query")),
     );
 
+  // Use toPersistenceError to distinguish between SQL and decode errors
   const getByCommandId: OrchestrationCommandReceiptRepositoryShape["getByCommandId"] = (input) =>
     findReceiptByCommandId(input).pipe(
-      Effect.mapError(
-        toPersistenceSqlError("OrchestrationCommandReceiptRepository.getByCommandId:query"),
-      ),
+      Effect.mapError(toPersistenceError("OrchestrationCommandReceiptRepository.getByCommandId:query")),
     );
 
   return {

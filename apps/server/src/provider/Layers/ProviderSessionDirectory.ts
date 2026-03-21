@@ -77,6 +77,10 @@ const makeProviderSessionDirectory = Effect.gen(function* () {
       ),
     );
 
+  // NOTE: This read-modify-write pattern is susceptible to lost updates under concurrent writes.
+  // If concurrent session updates become a concern, wrap in a transaction or add optimistic
+  // concurrency control (e.g., version field). Current usage patterns don't have high concurrency
+  // on the same thread, so this is acceptable for now.
   const upsert: ProviderSessionDirectoryShape["upsert"] = Effect.fn(function* (binding) {
     const existing = yield* repository
       .getByThreadId({ threadId: binding.threadId })

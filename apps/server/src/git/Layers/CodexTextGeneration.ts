@@ -110,17 +110,19 @@ const makeCodexTextGeneration = Effect.gen(function* () {
     stream: Stream.Stream<Uint8Array, E>,
   ): Effect.Effect<string, TextGenerationError> =>
     Effect.gen(function* () {
-      let text = "";
+      // Collect all chunks first, then decode once to handle multi-byte
+      // UTF-8 characters that may be split across chunk boundaries
+      const chunks: Uint8Array[] = [];
       yield* Stream.runForEach(stream, (chunk) =>
         Effect.sync(() => {
-          text += Buffer.from(chunk).toString("utf8");
+          chunks.push(chunk);
         }),
       ).pipe(
         Effect.mapError((cause) =>
           normalizeCodexError(operation, cause, "Failed to collect process output"),
         ),
       );
-      return text;
+      return Buffer.concat(chunks).toString("utf8");
     });
 
   const tempDir = process.env.TMPDIR ?? process.env.TEMP ?? process.env.TMP ?? "/tmp";

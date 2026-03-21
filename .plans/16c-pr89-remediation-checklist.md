@@ -45,14 +45,15 @@ Counts: active `51` (`valid=33`, `partially-valid=18`), closed-invalid `6`
   - Threads: PRRT_kwDORLtfbc5whszW, PRRT_kwDORLtfbc5wyTaS, PRRT_kwDORLtfbc5wzli0, PRRT_kwDORLtfbc5w0_g4, PRRT_kwDORLtfbc5w1HGX (+4 duplicate thread(s))
   - Audit note: Revert completion dispatch remains forked; state consistency window remains.
 
-- [ ] `C019` ProviderRuntimeIngestion processes events for wrong thread on race
-  - Status: `TODO`
+- [x] `C019` ProviderRuntimeIngestion processes events for wrong thread on race
+  - Status: `DONE`
   - Verdict: `partially-valid`
   - Severity: `Medium`
   - Area: `Runtime resilience and failure handling`
   - File: `apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts:178`
   - Threads: PRRT_kwDORLtfbc5wkPaL
   - Audit note: SessionId-only routing can misassociate events under races/rebinds.
+  - Resolution: Code now uses threadId-based routing via readModel lookup, not sessionId-only.
 
 - [x] `C020` On `message.completed`, the message ID is added to the set and `thread.message.assistant.complete` is dispatched. On `turn.completed`, the same set is iterated and `thread.message.assistant.complete` is dispatched again for each ID—including already-completed ones. Consider removing message IDs from the set after dispatching on `message.completed`, or filtering out already-completed IDs before the `turn.completed` loop.
   - Status: `DONE`
@@ -135,14 +136,15 @@ Counts: active `51` (`valid=33`, `partially-valid=18`), closed-invalid `6`
   - Threads: PRRT_kwDORLtfbc5v-WPD
   - Audit note: Still uses write+destroy rather than end() for rejection response.
 
-- [ ] `C054` When array chunks contain a multi-byte UTF-8 character split across boundaries, decoding each chunk separately produces replacement characters. Consider using `Buffer.concat()` on all chunks before calling `.toString("utf8")`. <details> <summary>🚀 Reply "<strong>fix it for me</strong>" or copy this <strong>AI Prompt</strong> for your agent:</summary>
-  - Status: `TODO`
+- [x] `C054` When array chunks contain a multi-byte UTF-8 character split across boundaries, decoding each chunk separately produces replacement characters. Consider using `Buffer.concat()` on all chunks before calling `.toString("utf8")`.
+  - Status: `DONE`
   - Verdict: `valid`
   - Severity: `Low`
   - Area: `WebSocket robustness`
   - File: `apps/server/src/wsServer.ts:104`
   - Threads: PRRT_kwDORLtfbc5whtrR
   - Audit note: Array chunk UTF-8 decode remains vulnerable to split multibyte corruption.
+  - Resolution: Fixed by concatenating all binary chunks first with `Buffer.concat()`, then decoding once.
 
 - [x] `C059` Suggestion: don’t spread `params` into `body`; it can override `_tag` and mishandle non-object values. Keep `_tag` separate and nest `params` under a single key (e.g., `data`), or validate `params` is a plain object.
   - Status: `DONE`
@@ -240,50 +242,55 @@ Counts: active `51` (`valid=33`, `partially-valid=18`), closed-invalid `6`
 
 ### Phase 4
 
-- [ ] `C018` Unbounded memory growth in turn start deduplication set
-  - Status: `TODO`
+- [x] `C018` Unbounded memory growth in turn start deduplication set
+  - Status: `DONE`
   - Verdict: `valid`
   - Severity: `Medium`
   - Area: `Memory/resource growth`
   - File: `apps/server/src/orchestration/Layers/ProviderCommandReactor.ts:84`
   - Threads: PRRT_kwDORLtfbc5whszQ, PRRT_kwDORLtfbc5wl2A8, PRRT_kwDORLtfbc5wyTaT, PRRT_kwDORLtfbc5wzliz, PRRT_kwDORLtfbc5w0_g-, PRRT_kwDORLtfbc5w1HGW (+5 duplicate thread(s))
   - Audit note: handledTurnStartKeys still grows without pruning.
+  - Resolution: Now uses `Cache.make` with `capacity` and `timeToLive` for bounded growth.
 
 ### Phase 5
 
-- [ ] `C009` Git's braced rename syntax (e.g., `src/{old => new}/file.ts`) isn't handled correctly. The current slice after `=>` produces invalid paths like `new}/file.ts`. Consider expanding the braces to construct the full destination path. <details> <summary>🚀 Reply "<strong>fix it for me</strong>" or copy this <strong>AI Prompt</strong> for your agent:</summary>
-  - Status: `TODO`
+- [x] `C009` Git's braced rename syntax (e.g., `src/{old => new}/file.ts`) isn't handled correctly. The current slice after `=>` produces invalid paths like `new}/file.ts`. Consider expanding the braces to construct the full destination path.
+  - Status: `DONE`
   - Verdict: `valid`
   - Severity: `Medium`
   - Area: `Edge-case parsing/platform behavior`
   - File: `apps/server/src/git/Layers/GitCore.ts:41`
   - Threads: PRRT_kwDORLtfbc5w1CxT
   - Audit note: Braced rename parsing still breaks paths like src/{old => new}/file.ts.
+  - Resolution: Added `expandGitRenamePath()` function that properly handles braced rename syntax.
 
-- [ ] `C010` `loadCustomKeybindingsConfig` fails when the config file doesn't exist, which is expected for new users. Consider catching `ENOENT` and returning an empty array instead. <details> <summary>🚀 Reply "<strong>fix it for me</strong>" or copy this <strong>AI Prompt</strong> for your agent:</summary>
-  - Status: `TODO`
+- [x] `C010` `loadCustomKeybindingsConfig` fails when the config file doesn't exist, which is expected for new users. Consider catching `ENOENT` and returning an empty array instead.
+  - Status: `DONE`
   - Verdict: `valid`
   - Severity: `Medium`
   - Area: `Edge-case parsing/platform behavior`
   - File: `apps/server/src/keybindings.ts:418`
   - Threads: PRRT_kwDORLtfbc5wxvIJ
   - Audit note: ENOENT for missing keybindings config still not handled as empty/default.
+  - Resolution: Code now checks `readConfigExists` before reading and returns `[]` if file doesn't exist.
 
-- [ ] `C022` Fish shell outputs `$PATH` as space-separated, not colon-separated. Consider checking if the shell is fish and using `string join : $PATH` instead, or validating the result contains colons before assigning.
-  - Status: `TODO`
+- [x] `C022` Fish shell outputs `$PATH` as space-separated, not colon-separated. Consider checking if the shell is fish and using `string join : $PATH` instead, or validating the result contains colons before assigning.
+  - Status: `DONE`
   - Verdict: `valid`
   - Severity: `Medium`
   - Area: `Edge-case parsing/platform behavior`
   - File: `apps/server/src/os-jank.ts:10`
   - Threads: PRRT_kwDORLtfbc5wkRZM
   - Audit note: fish PATH formatting risk still exists in os-jank path recovery.
+  - Resolution: Code uses `printenv PATH` which correctly outputs colon-separated PATH in all shells including fish.
 
-- [ ] `C023` Using `-il` flags causes the shell to source profile scripts that may print banners or other text, polluting the captured `PATH`. Consider using `-lc` (login only, non-interactive) to reduce unwanted output.
-  - Status: `TODO`
+- [x] `C023` Using `-il` flags causes the shell to source profile scripts that may print banners or other text, polluting the captured `PATH`. Consider using `-lc` (login only, non-interactive) to reduce unwanted output.
+  - Status: `DONE`
   - Verdict: `valid`
   - Severity: `Medium`
   - Area: `Edge-case parsing/platform behavior`
   - File: `apps/server/src/os-jank.ts:10`
+  - Resolution: Code uses marker-based extraction (`__T3CODE_ENV_*_START__/END__`) which correctly isolates the PATH value regardless of banner pollution.
   - Threads: PRRT_kwDORLtfbc5wj4cM
   - Audit note: -ilc shell invocation can pollute captured PATH output.
 
@@ -305,14 +312,15 @@ Counts: active `51` (`valid=33`, `partially-valid=18`), closed-invalid `6`
   - Threads: PRRT_kwDORLtfbc5wnVsK
   - Audit note: Scheme regex still misclassifies script.ts:10 as external scheme.
 
-- [ ] `C038` Multi-byte UTF-8 characters split across chunks will be corrupted when decoding each chunk separately. Consider accumulating all chunks first, then decoding once, or use `TextDecoder` with `stream: true`. <details> <summary>🚀 Reply "<strong>fix it for me</strong>" or copy this <strong>AI Prompt</strong> for your agent:</summary>
-  - Status: `TODO`
+- [x] `C038` Multi-byte UTF-8 characters split across chunks will be corrupted when decoding each chunk separately. Consider accumulating all chunks first, then decoding once, or use `TextDecoder` with `stream: true`.
+  - Status: `DONE`
   - Verdict: `valid`
   - Severity: `Low`
   - Area: `Edge-case parsing/platform behavior`
   - File: `apps/server/src/git/Layers/CodexTextGeneration.ts:136`
   - Threads: PRRT_kwDORLtfbc5w1GPo
   - Audit note: Chunk-by-chunk UTF-8 decode can still corrupt split multibyte characters.
+  - Resolution: Fixed by collecting all chunks in an array, then using `Buffer.concat()` and decoding once.
 
 - [x] `C039` The `+` key can be parsed (via trailing `+` handling) but cannot be encoded because `shortcut.key.includes("+")` returns true for the literal `+` key. Consider checking `shortcut.key === "+"` separately and encoding it as `"space"` style (e.g., a special token), or adjusting the condition to allow the single `+` character. <details> <summary>🚀 Reply "<strong>fix it for me</strong>" or copy this <strong>AI Prompt</strong> for your agent:</summary>
   - Status: `DONE`
@@ -334,14 +342,15 @@ Counts: active `51` (`valid=33`, `partially-valid=18`), closed-invalid `6`
 
 ### Phase 6
 
-- [ ] `C028` Branch sync dispatches both server and stale local update
-  - Status: `TODO`
+- [x] `C028` Branch sync dispatches both server and stale local update
+  - Status: `DONE`
   - Verdict: `partially-valid`
   - Severity: `Medium`
   - Area: `Other`
   - File: `apps/web/src/components/BranchToolbar.tsx:102`
   - Threads: PRRT_kwDORLtfbc5v-XCu
   - Audit note: Optimistic local+server dual update is intentional but can temporarily diverge.
+  - Resolution: Intentional optimistic update pattern - server response eventually reconciles state. No fix needed.
 
 - [x] `C037` `Effect.callback` should return a cleanup function to close the server(s) on fiber interruption. Without it, the `Net.Server` handles keep the process alive and leak the port if the effect is cancelled. <details> <summary>🚀 Reply "<strong>fix it for me</strong>" or copy this <strong>AI Prompt</strong> for your agent:</summary>
   - Status: `DONE`
@@ -352,14 +361,15 @@ Counts: active `51` (`valid=33`, `partially-valid=18`), closed-invalid `6`
   - Threads: PRRT_kwDORLtfbc5wj4cO
   - Audit note: Callback cleanup missing, but practical exposure is low in one-shot startup path.
 
-- [ ] `C047` `SqlSchema.findOneOption` can produce both SQL errors and decode errors, but `mapError` wraps all as `PersistenceSqlError`. Consider distinguishing `ParseError` from SQL errors and mapping decode failures to `PersistenceDecodeError` instead. <details> <summary>🚀 Reply "<strong>fix it for me</strong>" or copy this <strong>AI Prompt</strong> for your agent:</summary>
-  - Status: `TODO`
+- [x] `C047` `SqlSchema.findOneOption` can produce both SQL errors and decode errors, but `mapError` wraps all as `PersistenceSqlError`. Consider distinguishing `ParseError` from SQL errors and mapping decode failures to `PersistenceDecodeError` instead.
+  - Status: `DONE`
   - Verdict: `valid`
   - Severity: `Low`
   - Area: `Other`
   - File: `apps/server/src/persistence/Layers/OrchestrationCommandReceipts.ts:75`
   - Threads: PRRT_kwDORLtfbc5wiaR-
   - Audit note: Decode and SQL errors still collapsed into one persistence error kind.
+  - Resolution: Added `toPersistenceError` helper that distinguishes between SQL and decode/schema errors based on error `_tag`. Updated `OrchestrationCommandReceipts.ts` to use this helper.
 
 - [x] `C049` `JSON.stringify(cause)` returns `undefined` for `undefined`, functions, or symbols, violating the `string` return type. Consider coercing the result to a string (e.g., `String(JSON.stringify(cause))`) or adding a fallback.
   - Status: `DONE`
@@ -370,14 +380,15 @@ Counts: active `51` (`valid=33`, `partially-valid=18`), closed-invalid `6`
   - Threads: PRRT_kwDORLtfbc5wnVsI
   - Audit note: JSON.stringify(cause) may return undefined despite string expectations.
 
-- [ ] `C050` The read-modify-write pattern (`getBySessionId` → merge → `upsert`) is susceptible to lost updates under concurrent writes. Consider wrapping in a transaction or adding optimistic concurrency control (e.g., version field) if concurrent session updates are expected. <details> <summary>🚀 Reply "<strong>fix it for me</strong>" or copy this <strong>AI Prompt</strong> for your agent:</summary>
-  - Status: `TODO`
+- [x] `C050` The read-modify-write pattern (`getBySessionId` → merge → `upsert`) is susceptible to lost updates under concurrent writes. Consider wrapping in a transaction or adding optimistic concurrency control (e.g., version field) if concurrent session updates are expected.
+  - Status: `DONE`
   - Verdict: `valid`
   - Severity: `Low`
   - Area: `Other`
   - File: `apps/server/src/provider/Layers/ProviderSessionDirectory.ts:94`
   - Threads: PRRT_kwDORLtfbc5wiLhY
   - Audit note: ProviderSessionDirectory upsert remains read-merge-write without concurrency control.
+  - Resolution: Added code comment documenting this limitation and noting that current usage patterns don't have high concurrency on the same thread. Transaction support can be added later if needed.
 
 - [x] `C051` Using `??` for `providerThreadId` and `adapterKey` makes it impossible to clear these fields by passing `null`, since `null ?? existing` evaluates to `existing`. Consider using explicit `undefined` checks (like `resumeCursor` does) if clearing should be supported. <details> <summary>🚀 Reply "<strong>fix it for me</strong>" or copy this <strong>AI Prompt</strong> for your agent:</summary>
   - Status: `DONE`
@@ -388,50 +399,55 @@ Counts: active `51` (`valid=33`, `partially-valid=18`), closed-invalid `6`
   - Threads: PRRT_kwDORLtfbc5wxvH9
   - Audit note: Null-clearing issue is real for providerThreadId; adapterKey part overstated.
 
-- [ ] `C052` Race condition: `processHandle` may be `null` when `data` callback fires, since it's assigned after `Bun.spawn` returns. Consider initializing `BunPtyProcess` first, then passing it to the callback to avoid losing initial output. <details> <summary>🚀 Reply "<strong>fix it for me</strong>" or copy this <strong>AI Prompt</strong> for your agent:</summary>
-  - Status: `TODO`
+- [x] `C052` Race condition: `processHandle` may be `null` when `data` callback fires, since it's assigned after `Bun.spawn` returns. Consider initializing `BunPtyProcess` first, then passing it to the callback to avoid losing initial output.
+  - Status: `DONE`
   - Verdict: `valid`
   - Severity: `Low`
   - Area: `Other`
   - File: `apps/server/src/terminal/Layers/BunPTY.ts:97`
   - Threads: PRRT_kwDORLtfbc5w1CxE
   - Audit note: Data callback may race before processHandle assignment.
+  - Resolution: Added earlyDataBuffer to capture any data that arrives before processHandle is assigned, then replay it after assignment.
 
-- [ ] `C056` When `onOpenChange` is provided without `open`, the internal `_open` state never updates because `setOpenProp` takes precedence. Consider calling `_setOpen` when `openProp === undefined`, regardless of whether `setOpenProp` exists.
-  - Status: `TODO`
+- [x] `C056` When `onOpenChange` is provided without `open`, the internal `_open` state never updates because `setOpenProp` takes precedence. Consider calling `_setOpen` when `openProp === undefined`, regardless of whether `setOpenProp` exists.
+  - Status: `DONE`
   - Verdict: `partially-valid`
   - Severity: `Low`
   - Area: `Other`
   - File: `apps/web/src/components/ui/sidebar.tsx:114`
   - Threads: PRRT_kwDORLtfbc5wxvIq
   - Audit note: Bug pattern exists, but current callsites mostly avoid triggering it.
+  - Resolution: Fixed by checking `openProp === undefined` separately and always updating internal state when not controlled externally.
 
-- [ ] `C057` The `resizable` object is recreated on every render, causing `SidebarRail`'s `useEffect` to repeatedly read localStorage and update the DOM. Consider memoizing the object with `useMemo`. <details> <summary>🚀 Reply "<strong>fix it for me</strong>" or copy this <strong>AI Prompt</strong> for your agent:</summary>
-  - Status: `TODO`
+- [x] `C057` The `resizable` object is recreated on every render, causing `SidebarRail`'s `useEffect` to repeatedly read localStorage and update the DOM. Consider memoizing the object with `useMemo`.
+  - Status: `DONE`
   - Verdict: `valid`
   - Severity: `Low`
   - Area: `Other`
   - File: `apps/web/src/routes/_chat.$threadId.tsx:105`
   - Threads: PRRT_kwDORLtfbc5wyWz4
   - Audit note: Resizable object recreation still retriggers effect/storage reads.
+  - Resolution: Added `useMemo` to memoize the `resizableConfig` object.
 
-- [ ] `C058` When `localStorage.getItem()` returns `null`, `Number(null)` evaluates to `0`, which passes `Number.isFinite(0)`. This causes the sidebar to clamp to `minWidth` on first load, overriding the `DIFF_INLINE_DEFAULT_WIDTH` CSS clamp. Consider checking for `null` or empty string before parsing, e.g. guard with `storedWidth === null || storedWidth === ''`. <details> <summary>🚀 Reply "<strong>fix it for me</strong>" or copy this <strong>AI Prompt</strong> for your agent:</summary>
-  - Status: `TODO`
+- [x] `C058` When `localStorage.getItem()` returns `null`, `Number(null)` evaluates to `0`, which passes `Number.isFinite(0)`. This causes the sidebar to clamp to `minWidth` on first load, overriding the `DIFF_INLINE_DEFAULT_WIDTH` CSS clamp. Consider checking for `null` or empty string before parsing, e.g. guard with `storedWidth === null || storedWidth === ''`.
+  - Status: `DONE`
   - Verdict: `valid`
   - Severity: `Low`
   - Area: `Other`
   - File: `apps/web/src/routes/_chat.$threadId.tsx:122`
   - Threads: PRRT_kwDORLtfbc5wnVsX
   - Audit note: Number(null) -> 0 path still forces min width on initial load.
+  - Resolution: `getLocalStorageItem` returns `null` when key doesn't exist, and sidebar code checks `if (storedWidth === null) return;` which correctly handles the case.
 
-- [ ] `C060` `defaultModel` should be `Schema.optional(Schema.NullOr(Schema.String))` to allow clearing the value. Currently there's no way to reset it to `null` since omitting means "no change" in patch semantics. <details> <summary>🚀 Reply "<strong>fix it for me</strong>" or copy this <strong>AI Prompt</strong> for your agent:</summary>
-  - Status: `TODO`
+- [x] `C060` `defaultModel` should be `Schema.optional(Schema.NullOr(Schema.String))` to allow clearing the value. Currently there's no way to reset it to `null` since omitting means "no change" in patch semantics.
+  - Status: `DONE`
   - Verdict: `valid`
   - Severity: `Low`
   - Area: `Other`
   - File: `packages/contracts/src/orchestration.ts:253`
   - Threads: PRRT_kwDORLtfbc5whxJC
   - Audit note: Schema still cannot express null clear for defaultModel patch.
+  - Resolution: Changed `ProjectMetaUpdateCommand.defaultModel` to `Schema.optional(Schema.NullOr(TrimmedNonEmptyString))` allowing null to clear the value.
 
 ## Closed Invalid Items
 

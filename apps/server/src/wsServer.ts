@@ -140,23 +140,46 @@ function websocketRawToString(raw: unknown): string | null {
     return Buffer.from(new Uint8Array(raw)).toString("utf8");
   }
   if (Array.isArray(raw)) {
-    const chunks: string[] = [];
+    // Concatenate all binary chunks first, then decode once to handle
+    // multi-byte UTF-8 characters that may be split across chunk boundaries
+    const buffers: Uint8Array[] = [];
+    let hasString = false;
     for (const chunk of raw) {
       if (typeof chunk === "string") {
-        chunks.push(chunk);
-        continue;
+        hasString = true;
+        break;
       }
       if (chunk instanceof Uint8Array) {
-        chunks.push(Buffer.from(chunk).toString("utf8"));
+        buffers.push(chunk);
         continue;
       }
       if (chunk instanceof ArrayBuffer) {
-        chunks.push(Buffer.from(new Uint8Array(chunk)).toString("utf8"));
+        buffers.push(new Uint8Array(chunk));
         continue;
       }
       return null;
     }
-    return chunks.join("");
+    // If there are strings mixed in, fall back to per-chunk decode (existing behavior)
+    if (hasString) {
+      const chunks: string[] = [];
+      for (const chunk of raw) {
+        if (typeof chunk === "string") {
+          chunks.push(chunk);
+          continue;
+        }
+        if (chunk instanceof Uint8Array) {
+          chunks.push(Buffer.from(chunk).toString("utf8"));
+          continue;
+        }
+        if (chunk instanceof ArrayBuffer) {
+          chunks.push(Buffer.from(new Uint8Array(chunk)).toString("utf8"));
+          continue;
+        }
+      }
+      return chunks.join("");
+    }
+    // All binary - concat and decode once
+    return Buffer.concat(buffers).toString("utf8");
   }
   return null;
 }

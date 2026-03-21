@@ -1,5 +1,6 @@
 import type { SymphonyRunId, SymphonyTask, SymphonyTaskState } from "@t3tools/contracts";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { PencilIcon, PlayIcon, RotateCcwIcon, SquareIcon, Trash2Icon } from "lucide-react";
 import { useAppSettings } from "~/appSettings";
 import { Badge } from "~/components/ui/badge";
@@ -23,24 +24,33 @@ interface SymphonyTaskDetailProps {
 export function SymphonyTaskDetail({ task, cwd, onEditTask }: SymphonyTaskDetailProps) {
   const { settings } = useAppSettings();
   const selectTask = useSymphonyStore((state) => state.selectTask);
-  const runs = useSymphonyStore((state) =>
-    task ? selectRunsByTask(task.id)(state).toReversed() : [],
+  const runsRaw = useSymphonyStore(
+    useShallow((state) =>
+      task ? selectRunsByTask(task.id)(state) : [],
+    ),
   );
+  // Memoize reversed runs to prevent infinite loop from new array reference each render
+  const runs = useMemo(() => [...runsRaw].reverse(), [runsRaw]);
   const [selectedRunId, setSelectedRunId] = useState<SymphonyRunId | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const prevTaskIdRef = useRef<string | null>(null);
 
+  // Only update selection when task changes, not when runs array reference changes
   useEffect(() => {
+    const prevTaskId = prevTaskIdRef.current;
+    prevTaskIdRef.current = task?.id ?? null;
+
     if (!task) {
       setSelectedRunId(null);
       return;
     }
 
-    const preferredRunId = task.currentRunId ?? runs[0]?.id ?? null;
-    setSelectedRunId((current) => {
-      if (current && runs.some((run) => run.id === current)) return current;
-      return preferredRunId;
-    });
-  }, [runs, task]);
+    // Only reset selection if task actually changed
+    if (prevTaskId !== task.id) {
+      const preferredRunId = task.currentRunId ?? runs[0]?.id ?? null;
+      setSelectedRunId(preferredRunId);
+    }
+  }, [task?.id]);
 
   const selectedRun = useMemo(
     () => runs.find((run) => run.id === selectedRunId) ?? runs[0] ?? null,

@@ -63,7 +63,7 @@
 
 ---
 
-## Phase 3: UI 🔄 IN PROGRESS
+## Phase 3: UI ✅ COMPLETE
 
 ### State & Transport ✅
 - [x] Create `apps/web/src/symphonyStore.ts`
@@ -79,10 +79,10 @@
 - [x] `SymphonyTaskCard.tsx`
 - [x] `SymphonyMetrics.tsx`
 - [x] `SymphonySidebar.tsx`
-- [ ] `SymphonyTaskForm.tsx` (optional - create task dialog)
-- [ ] `SymphonyTaskDetail.tsx` (optional - task detail panel)
-- [ ] `SymphonyRunOutput.tsx` (optional - run output viewer)
-- [ ] `SymphonyRunHistory.tsx` (optional - run history panel)
+- [x] `SymphonyTaskForm.tsx` (create/edit task dialog)
+- [x] `SymphonyTaskDetail.tsx` (task detail panel)
+- [x] `SymphonyRunOutput.tsx` (run output viewer)
+- [x] `SymphonyRunHistory.tsx` (run history panel)
 
 ### Server Wiring ✅
 - [x] Add SymphonyTaskRepositoryLive to serverLayers.ts
@@ -94,9 +94,9 @@
 ### Sidebar ✅
 - [x] Add Symphony link to Sidebar footer
 
-### Drag and Drop (optional)
-- [ ] Add DnD library
-- [ ] Implement drag between columns
+### Drag and Drop ✅
+- [x] Add @dnd-kit/core, @dnd-kit/utilities packages
+- [x] Implement drag between columns in SymphonyBoard
 
 ---
 
@@ -129,3 +129,18 @@
 
 ### Cross-linking (future enhancement)
 - [ ] Link task ↔ thread (optional)
+
+---
+
+## Summary
+
+| Phase | Status |
+|-------|--------|
+| Phase 1: Foundation | ✅ COMPLETE |
+| Phase 2: Core Engine | ✅ COMPLETE |
+| Phase 3: UI | ✅ COMPLETE |
+| Phase 4: Polish & Hardening | ✅ COMPLETE |
+
+**Symphony Integration is feature-complete!** 🎉
+
+_Last updated: 2026-03-21_

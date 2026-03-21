@@ -34,7 +34,7 @@ import { CodexAdapter, type CodexAdapterShape } from "../Services/CodexAdapter.t
 import {
   CodexAppServerManager,
   type CodexAppServerStartSessionInput,
-} from "../../codexAppServerManager.ts";
+} from "../codex/index.ts";
 import { resolveAttachmentPath } from "../../attachmentStore.ts";
 import { ServerConfig } from "../../config.ts";
 import { type EventNdjsonLogger, makeEventNdjsonLogger } from "./EventNdjsonLogger.ts";

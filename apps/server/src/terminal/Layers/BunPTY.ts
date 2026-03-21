@@ -95,6 +95,8 @@ export const BunPtyAdapterLive = Layer.effect(
     return {
       spawn: (input) =>
         Effect.sync(() => {
+          // Buffer for early data that arrives before processHandle is assigned
+          const earlyDataBuffer: Buffer[] = [];
           let processHandle: BunPtyProcess | null = null;
           const command = [input.shell, ...(input.args ?? [])];
           const subprocess = Bun.spawn(command, {
@@ -104,11 +106,20 @@ export const BunPtyAdapterLive = Layer.effect(
               cols: input.cols,
               rows: input.rows,
               data: (_terminal, data) => {
-                processHandle?.emitData(data);
+                if (processHandle) {
+                  processHandle.emitData(data);
+                } else {
+                  // Buffer early data until processHandle is assigned
+                  earlyDataBuffer.push(Buffer.from(data));
+                }
               },
             },
           });
           processHandle = new BunPtyProcess(subprocess);
+          // Replay any buffered early data
+          for (const bufferedData of earlyDataBuffer) {
+            processHandle.emitData(bufferedData);
+          }
           return processHandle;
         }),
     } satisfies PtyAdapterShape;

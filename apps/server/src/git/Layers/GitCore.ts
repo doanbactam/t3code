@@ -31,6 +31,31 @@ function parseBranchAb(value: string): { ahead: number; behind: number } {
   };
 }
 
+/**
+ * Expands Git's braced rename syntax.
+ *
+ * Examples:
+ * - "src/{old => new}/file.ts" → "src/new/file.ts"
+ * - "old_name => new_name" → "new_name"
+ * - "{old_dir => new_dir}/file.ts" → "new_dir/file.ts"
+ */
+function expandGitRenamePath(rawPath: string): string {
+  const arrowIndex = rawPath.indexOf(" => ");
+  if (arrowIndex < 0) return rawPath;
+
+  const afterArrow = rawPath.slice(arrowIndex + 4).trim();
+
+  // Check for braced syntax: prefix{old => new}suffix
+  const braceMatch = rawPath.match(/^(.*)\{([^}]*) => ([^}]*)\}(.*)$/);
+  if (braceMatch) {
+    const [, prefix, _old, replacement, suffix] = braceMatch;
+    return `${prefix}${replacement}${suffix}`;
+  }
+
+  // Non-braced rename: just return the new name
+  return afterArrow;
+}
+
 function parseNumstatEntries(
   stdout: string,
 ): Array<{ path: string; insertions: number; deletions: number }> {
@@ -43,9 +68,7 @@ function parseNumstatEntries(
     if (rawPath.length === 0) continue;
     const added = Number.parseInt(addedRaw ?? "0", 10);
     const deleted = Number.parseInt(deletedRaw ?? "0", 10);
-    const renameArrowIndex = rawPath.indexOf(" => ");
-    const normalizedPath =
-      renameArrowIndex >= 0 ? rawPath.slice(renameArrowIndex + " => ".length).trim() : rawPath;
+    const normalizedPath = expandGitRenamePath(rawPath);
     entries.push({
       path: normalizedPath.length > 0 ? normalizedPath : rawPath,
       insertions: Number.isFinite(added) ? added : 0,

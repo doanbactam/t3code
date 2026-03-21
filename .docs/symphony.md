@@ -119,7 +119,7 @@ Access the Symphony dashboard at `/symphony`:
 
 - View tasks organized by state
 - Click tasks to select and view details
-- Drag and drop to move tasks between states (coming soon)
+- Drag and drop to move tasks between states
 
 ### Metrics Bar
 

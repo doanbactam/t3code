@@ -110,7 +110,9 @@ function SidebarProvider({
       const openState = typeof value === "function" ? value(open) : value;
       if (setOpenProp) {
         setOpenProp(openState);
-      } else {
+      }
+      // Always update internal state when not controlled externally
+      if (openProp === undefined) {
         _setOpen(openState);
       }
 
@@ -122,7 +124,7 @@ function SidebarProvider({
         value: String(openState),
       });
     },
-    [setOpenProp, open],
+    [setOpenProp, open, openProp],
   );
 
   // Helper to toggle the sidebar.

@@ -57,6 +57,32 @@ export function toPersistenceDecodeCauseError(operation: string) {
     });
 }
 
+/**
+ * Maps errors from SqlSchema operations to the appropriate persistence error type.
+ * Distinguishes between SQL errors and decode/schema errors.
+ */
+export function toPersistenceError(operation: string) {
+  return (cause: unknown): PersistenceSqlError | PersistenceDecodeError => {
+    // Check if it's a Schema/decode error
+    if (cause && typeof cause === "object" && "_tag" in cause) {
+      const tag = (cause as { _tag: string })._tag;
+      if (tag === "ParseError" || tag === "SchemaError" || tag === "Transformation") {
+        return new PersistenceDecodeError({
+          operation,
+          issue: SchemaIssue.makeFormatterDefault()((cause as any).issue ?? cause),
+          cause,
+        });
+      }
+    }
+    // Default to SQL error
+    return new PersistenceSqlError({
+      operation,
+      detail: `Failed to execute ${operation}`,
+      cause,
+    });
+  };
+}
+
 export const isPersistenceError = (u: unknown) =>
   Schema.is(PersistenceSqlError)(u) || Schema.is(PersistenceDecodeError)(u);
 

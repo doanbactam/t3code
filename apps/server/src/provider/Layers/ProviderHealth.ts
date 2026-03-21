@@ -25,7 +25,7 @@ import {
 } from "../codexCliVersion";
 import { ProviderHealth, type ProviderHealthShape } from "../Services/ProviderHealth";
 
-const DEFAULT_TIMEOUT_MS = 4_000;
+const DEFAULT_TIMEOUT_MS = process.platform === "win32" ? 10_000 : 4_000;
 const CODEX_PROVIDER = "codex" as const;
 const CLAUDE_AGENT_PROVIDER = "claudeAgent" as const;
 

@@ -6,6 +6,7 @@
 import type { SymphonyTask, SymphonyWorkflow } from "@t3tools/contracts";
 import { PlusIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { Button } from "~/components/ui/button";
 import { Sheet, SheetPopup } from "~/components/ui/sheet";
 import { toastManager } from "~/components/ui/toast";
@@ -24,8 +25,10 @@ export function SymphonyDashboard() {
   const project = projects[0] ?? null;
   const projectId = project?.id ?? null;
 
-  const tasks = useSymphonyStore((state) =>
-    projectId ? selectTasksByProject(projectId)(state) : [],
+  const tasks = useSymphonyStore(
+    useShallow((state) =>
+      projectId ? selectTasksByProject(projectId)(state) : [],
+    ),
   );
   const selectedTask = useSymphonyStore(selectSelectedTask);
   const hydrated = useSymphonyStore((state) => state.hydrated);
